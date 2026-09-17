@@ -1,0 +1,67 @@
+﻿import { Product } from '../types/store';
+
+export const INITIAL_PRODUCTS: Product[] = [
+  {
+    id: 'prod-tshort-uniform',
+    name: 'tshort uniform',
+    sku: '140',
+    description: 'T-Shirt uniform haute qualité 100% coton pour entreprises et équipes avec impression DTF personnalisée',
+    baseCost: 0,
+    sellingPrice: 1900,
+    isActive: true,
+    variants: [
+      { id: 'var-8', productId: 'prod-tshort-uniform', name: 'Noir / S', sku: '140-BLK-S', additionalCost: 0, additionalPrice: 0, stockQuantity: 25, createdAt: '', updatedAt: '' },
+      { id: 'var-9', productId: 'prod-tshort-uniform', name: 'Noir / M', sku: '140-BLK-M', additionalCost: 0, additionalPrice: 0, stockQuantity: 50, createdAt: '', updatedAt: '' },
+      { id: 'var-10', productId: 'prod-tshort-uniform', name: 'Noir / L', sku: '140-BLK-L', additionalCost: 0, additionalPrice: 0, stockQuantity: 40, createdAt: '', updatedAt: '' },
+      { id: 'var-11', productId: 'prod-tshort-uniform', name: 'Noir / XL', sku: '140-BLK-XL', additionalCost: 0, additionalPrice: 0, stockQuantity: 20, createdAt: '', updatedAt: '' },
+    ],
+    createdAt: '2026-09-17 21:20:09',
+    updatedAt: '2026-09-17 21:20:09',
+  },
+  {
+    id: 'prod-tshirt-oversized',
+    name: 'T-Shirt Oversized Premium',
+    sku: 'TSHIRT-OVR-001',
+    description: 'T-shirt 100% coton peigné 240g/m² avec impression DTF haute définition',
+    baseCost: 0,
+    sellingPrice: 2500,
+    isActive: true,
+    variants: [
+      { id: 'var-1', productId: 'prod-tshirt-oversized', name: 'Noir / S', sku: 'TSHIRT-OVR-001-BLK-S', additionalCost: 0, additionalPrice: 0, stockQuantity: 25, createdAt: '', updatedAt: '' },
+      { id: 'var-2', productId: 'prod-tshirt-oversized', name: 'Noir / M', sku: 'TSHIRT-OVR-001-BLK-M', additionalCost: 0, additionalPrice: 0, stockQuantity: 50, createdAt: '', updatedAt: '' },
+      { id: 'var-3', productId: 'prod-tshirt-oversized', name: 'Noir / L', sku: 'TSHIRT-OVR-001-BLK-L', additionalCost: 0, additionalPrice: 0, stockQuantity: 40, createdAt: '', updatedAt: '' },
+      { id: 'var-4', productId: 'prod-tshirt-oversized', name: 'Noir / XL', sku: 'TSHIRT-OVR-001-BLK-XL', additionalCost: 0, additionalPrice: 0, stockQuantity: 15, createdAt: '', updatedAt: '' },
+    ],
+    createdAt: '2026-09-17 21:20:11',
+    updatedAt: '2026-09-17 21:20:11',
+  },
+  {
+    id: 'prod-hoodie-heavyweight',
+    name: 'Hoodie Heavyweight 350g',
+    sku: 'HOODIE-HVY-002',
+    description: 'Sweat à capuche molletonné premium 350g/m²',
+    baseCost: 0,
+    sellingPrice: 5500,
+    isActive: true,
+    variants: [
+      { id: 'var-5', productId: 'prod-hoodie-heavyweight', name: 'Gris Chiné / M', sku: 'HOODIE-HVY-002-GRY-M', additionalCost: 0, additionalPrice: 0, stockQuantity: 20, createdAt: '', updatedAt: '' },
+      { id: 'var-6', productId: 'prod-hoodie-heavyweight', name: 'Gris Chiné / L', sku: 'HOODIE-HVY-002-GRY-L', additionalCost: 0, additionalPrice: 0, stockQuantity: 25, createdAt: '', updatedAt: '' },
+    ],
+    createdAt: '2026-09-17 21:20:11',
+    updatedAt: '2026-09-17 21:20:11',
+  },
+  {
+    id: 'prod-casquette-custom',
+    name: 'Casquette Trucker ZR',
+    sku: 'CAP-CUSTOM-003',
+    description: 'Casquette trucker 5 panneaux avec visière courbée',
+    baseCost: 0,
+    sellingPrice: 1600,
+    isActive: true,
+    variants: [
+      { id: 'var-7', productId: 'prod-casquette-custom', name: 'Noir / Taille Unique', sku: 'CAP-CUSTOM-003-BLK-U', additionalCost: 0, additionalPrice: 0, stockQuantity: 35, createdAt: '', updatedAt: '' },
+    ],
+    createdAt: '2026-09-17 21:20:11',
+    updatedAt: '2026-09-17 21:20:11',
+  },
+];

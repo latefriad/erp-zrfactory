@@ -18,8 +18,8 @@ import { Footer } from './components/Footer';
 const CART_STORAGE_KEY = 'zr_store_cart_v1';
 
 export const App: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
+  const [products, setProducts] = useState<Product[]>(() => storeApi.getInitialProducts());
+  const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Cart state persisted to localStorage
@@ -51,20 +51,18 @@ export const App: React.FC = () => {
   }, [cart]);
 
   const fetchProducts = async () => {
-    setLoadingProducts(true);
-    setLoadError(null);
     try {
       const list = await storeApi.getProducts();
-      setProducts(list);
+      if (list && list.length > 0) {
+        setProducts(list);
+        setLoadError(null);
+      }
     } catch (err: any) {
-      console.error('Failed to load products', err);
-      setLoadError(err?.message || 'فشل في الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
-    } finally {
-      setLoadingProducts(false);
+      console.warn('[ZR Store] Using fallback catalog:', err);
     }
   };
 
-  // Load products on mount
+  // Load live products on mount in background
   useEffect(() => {
     fetchProducts();
   }, []);

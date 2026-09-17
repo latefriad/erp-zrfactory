@@ -12,7 +12,8 @@ build/
 .cache/
 
 # Database files
-data/
+/data/
+server/data/
 *.sqlite
 *.sqlite3
 *.db
