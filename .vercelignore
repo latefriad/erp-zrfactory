@@ -1,0 +1,10 @@
+node_modules
+server
+.git
+.github
+*.sqlite*
+*.log
+dist
+client/dist
+shared/dist
+server/dist
