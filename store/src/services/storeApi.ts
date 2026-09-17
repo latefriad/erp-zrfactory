@@ -1,6 +1,12 @@
 import { Product, StoreOrderPayload, OrderTrackingInfo } from '../types/store';
 
-const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
+const DEFAULT_PROD_API = 'https://erp-zrfactory.onrender.com';
+
+const API_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
+  : (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+      ? DEFAULT_PROD_API
+      : '');
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -10,7 +16,8 @@ export interface ApiResponse<T> {
 
 export const storeApi = {
   async getProducts(search?: string): Promise<Product[]> {
-    const url = new URL(`${API_BASE}/api/products`, window.location.origin);
+    const base = API_BASE || window.location.origin;
+    const url = new URL('/api/products', base);
     url.searchParams.set('isActive', 'true');
     if (search) {
       url.searchParams.set('search', search);
@@ -21,7 +28,7 @@ export const storeApi = {
       throw new Error(`Erreur de chargement des produits (${res.status})`);
     }
     const json = await res.json();
-    return json.data.products || [];
+    return json.data?.products || [];
   },
 
   async getProductById(id: string): Promise<Product> {
@@ -30,7 +37,7 @@ export const storeApi = {
       throw new Error(`Produit introuvable (${res.status})`);
     }
     const json = await res.json();
-    return json.data.product;
+    return json.data?.product;
   },
 
   async createStoreOrder(payload: StoreOrderPayload): Promise<any> {

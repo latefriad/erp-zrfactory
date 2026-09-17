@@ -1,4 +1,5 @@
-const RAW_API_URL = import.meta.env.VITE_API_URL || '';
+const DEFAULT_PROD_API = 'https://erp-zrfactory.onrender.com';
+const RAW_API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? DEFAULT_PROD_API : '');
 const API_BASE = RAW_API_URL ? `${RAW_API_URL.replace(/\/$/, '')}/api` : '/api';
 
 export interface ApiResponse<T> {
