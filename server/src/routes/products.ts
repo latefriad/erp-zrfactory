@@ -8,10 +8,7 @@ import { z } from 'zod';
 const router = Router();
 const productService = new ProductService();
 
-// Require authentication for all product endpoints
-router.use(authenticate);
-
-// List products
+// Public: List products (for Store catalog & ERP)
 router.get('/', (req: Request, res: Response, next: NextFunction) => {
   try {
     const search = req.query.search as string | undefined;
@@ -27,7 +24,7 @@ router.get('/', (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-// Get single product detail
+// Public: Get single product detail
 router.get('/:id', (req: Request, res: Response, next: NextFunction) => {
   try {
     const product = productService.getProductById(req.params.id);
@@ -39,6 +36,9 @@ router.get('/:id', (req: Request, res: Response, next: NextFunction) => {
     next(error);
   }
 });
+
+// Require authentication for all modifying product endpoints
+router.use(authenticate);
 
 // Create product (ADMIN, PARTNER, EMPLOYEE)
 router.post(

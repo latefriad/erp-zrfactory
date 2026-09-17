@@ -9,11 +9,57 @@ import {
   UpdateShippingSchema
 } from '../middleware/orderValidation';
 import { UserRole, OrderStatus, PaymentStatus } from '@zr-erp/shared';
+import { z } from 'zod';
 
 const router = Router();
 const orderService = new OrderService();
 
-// Require authentication for all order endpoints
+const StoreOrderSchema = z.object({
+  customerName: z.string().min(1, 'Le nom est obligatoire'),
+  customerPhone: z.string().min(8, 'Le numéro de téléphone est obligatoire'),
+  customerEmail: z.string().email().optional().or(z.literal('')),
+  shippingWilaya: z.string().min(1, 'La wilaya est obligatoire'),
+  shippingCommune: z.string().optional(),
+  shippingAddress: z.string().optional(),
+  deliveryOption: z.enum(['HOME', 'STOP_DESK']).optional(),
+  deliveryCompany: z.string().optional(),
+  deliveryFee: z.number().nonnegative().optional(),
+  notes: z.string().optional(),
+  items: z.array(z.object({
+    productId: z.string().min(1),
+    variantId: z.string().nullable().optional(),
+    quantity: z.number().int().positive('La quantité doit être supérieure à 0'),
+    notes: z.string().optional(),
+  })).min(1, 'Au moins un produit requis'),
+});
+
+// Public: Store guest order checkout
+router.post('/store-order', validateBody(StoreOrderSchema), (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const order = orderService.createStoreOrder(req.body);
+    res.status(201).json({
+      success: true,
+      data: { order },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Public: Order & parcel tracking for customers
+router.get('/track/:query', (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const tracking = orderService.trackOrder(req.params.query);
+    res.json({
+      success: true,
+      data: { tracking },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Require authentication for all internal order endpoints
 router.use(authenticate);
 
 // Get order pipeline statistics (KPIs)

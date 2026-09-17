@@ -27,6 +27,27 @@ export interface CreateOrderInput {
   notes?: string | null;
 }
 
+export interface CreateStoreOrderItemInput {
+  productId: string;
+  variantId?: string | null;
+  quantity: number;
+  notes?: string;
+}
+
+export interface CreateStoreOrderInput {
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  shippingWilaya: string;
+  shippingCommune?: string;
+  shippingAddress?: string;
+  deliveryOption?: 'HOME' | 'STOP_DESK';
+  deliveryCompany?: string;
+  deliveryFee?: number;
+  notes?: string;
+  items: CreateStoreOrderItemInput[];
+}
+
 export interface OrderFilterOptions {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
@@ -685,6 +706,156 @@ export class OrderService {
     });
 
     transaction();
+  }
+
+  public createStoreOrder(input: CreateStoreOrderInput): Order {
+    if (!input.customerName || input.customerName.trim().length === 0) {
+      throw new ValidationError('Le nom du client est obligatoire');
+    }
+    if (!input.customerPhone || input.customerPhone.trim().length === 0) {
+      throw new ValidationError('Le numéro de téléphone est obligatoire');
+    }
+    if (!input.shippingWilaya || input.shippingWilaya.trim().length === 0) {
+      throw new ValidationError('La wilaya de livraison est obligatoire');
+    }
+    if (!input.items || input.items.length === 0) {
+      throw new ValidationError('Une commande doit contenir au moins un article');
+    }
+
+    const cleanPhone = input.customerPhone.trim();
+    const cleanName = input.customerName.trim();
+    const cleanWilaya = input.shippingWilaya.trim();
+    const cleanCommune = input.shippingCommune?.trim() || 'Centre';
+    const cleanAddress = input.shippingAddress?.trim() || '';
+
+    // Check if customer exists by phone
+    let customer = this.db.prepare(`
+      SELECT id, name, phone, address, wilaya, commune 
+      FROM customers 
+      WHERE phone = ?
+    `).get(cleanPhone) as any;
+
+    if (!customer) {
+      const customerId = `cust-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const now = new Date().toISOString();
+      this.db.prepare(`
+        INSERT INTO customers (id, name, phone, email, address, wilaya, commune, notes, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        customerId,
+        cleanName,
+        cleanPhone,
+        input.customerEmail?.trim() || null,
+        cleanAddress || null,
+        cleanWilaya,
+        cleanCommune,
+        'Client Store Web E-Commerce',
+        now,
+        now
+      );
+      customer = { id: customerId, name: cleanName, phone: cleanPhone };
+    } else {
+      // Update contact info if changed
+      this.db.prepare(`
+        UPDATE customers
+        SET wilaya = COALESCE(?, wilaya),
+            commune = COALESCE(?, commune),
+            address = COALESCE(?, address),
+            updated_at = ?
+        WHERE id = ?
+      `).run(
+        cleanWilaya,
+        cleanCommune,
+        cleanAddress || null,
+        new Date().toISOString(),
+        customer.id
+      );
+    }
+
+    const deliveryNote = input.deliveryOption === 'STOP_DESK' ? '[Livraison Stop-Desk]' : '[Livraison à Domicile]';
+    const orderNotes = input.notes ? `${deliveryNote} ${input.notes}` : `${deliveryNote} Commande Store Web`;
+
+    return this.createOrder({
+      customerId: customer.id,
+      items: input.items.map(item => ({
+        productId: item.productId,
+        variantId: item.variantId || null,
+        quantity: item.quantity,
+        notes: item.notes || undefined,
+      })),
+      shippingWilaya: cleanWilaya,
+      shippingCommune: cleanCommune,
+      shippingAddress: cleanAddress,
+      deliveryCompany: input.deliveryCompany || 'Yalidine',
+      deliveryFee: input.deliveryFee !== undefined ? input.deliveryFee : 600,
+      notes: orderNotes,
+      status: OrderStatus.PENDING,
+      paymentStatus: PaymentStatus.UNPAID,
+    });
+  }
+
+  public trackOrder(query: string): any {
+    if (!query || query.trim().length === 0) {
+      throw new ValidationError('Numéro de commande ou numéro de téléphone requis pour le suivi');
+    }
+
+    const cleanQuery = query.trim();
+
+    const row = this.db.prepare(`
+      SELECT 
+        o.id, o.order_number, o.status, o.payment_status,
+        o.subtotal, o.delivery_fee, o.total,
+        o.delivery_company, o.tracking_number, o.shipping_wilaya, o.shipping_commune,
+        o.created_at, o.updated_at,
+        c.name as customer_name, c.phone as customer_phone
+      FROM orders o
+      JOIN customers c ON c.id = o.customer_id
+      WHERE UPPER(o.order_number) = UPPER(?) OR c.phone = ?
+      ORDER BY o.created_at DESC
+      LIMIT 1
+    `).get(cleanQuery, cleanQuery) as any;
+
+    if (!row) {
+      throw new NotFoundError('Aucune commande trouvée avec ces informations');
+    }
+
+    const items = this.db.prepare(`
+      SELECT 
+        oi.id, oi.quantity, oi.selling_price, oi.total_price,
+        p.name as product_name, pv.name as variant_name
+      FROM order_items oi
+      JOIN products p ON p.id = oi.product_id
+      LEFT JOIN product_variants pv ON pv.id = oi.variant_id
+      WHERE oi.order_id = ?
+    `).all(row.id) as any[];
+
+    // Mask phone for privacy e.g. 0555****12
+    const maskedPhone = row.customer_phone && row.customer_phone.length >= 8
+      ? row.customer_phone.substring(0, 4) + '****' + row.customer_phone.slice(-2)
+      : row.customer_phone;
+
+    return {
+      orderNumber: row.order_number,
+      status: row.status,
+      paymentStatus: row.payment_status,
+      customerName: row.customer_name,
+      customerPhone: maskedPhone,
+      shippingWilaya: row.shipping_wilaya,
+      shippingCommune: row.shipping_commune,
+      deliveryCompany: row.delivery_company,
+      trackingNumber: row.tracking_number,
+      total: row.total,
+      deliveryFee: row.delivery_fee,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      items: items.map(i => ({
+        productName: i.product_name,
+        variantName: i.variant_name || null,
+        quantity: i.quantity,
+        unitPrice: i.selling_price,
+        totalPrice: i.total_price,
+      })),
+    };
   }
 
   private logAudit(entry: {
