@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 
@@ -10,18 +10,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV NODE_OPTIONS="--max-old-space-size=450"
-
 # Copy package manifests
 COPY package*.json ./
 COPY shared/package*.json ./shared/
 COPY server/package*.json ./server/
 COPY client/package*.json ./client/
 
-# Install all dependencies across workspaces
-RUN npm install
+# Install all dependencies including devDependencies for TypeScript build
+RUN npm install --include=dev
 
 # Copy configuration and source files
 COPY tsconfig.base.json ./
@@ -34,6 +30,10 @@ RUN npm run build
 
 # Ensure database directory exists
 RUN mkdir -p /app/server/data /app/server/data/backups
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV NODE_OPTIONS="--max-old-space-size=450"
 
 EXPOSE 3000
 
