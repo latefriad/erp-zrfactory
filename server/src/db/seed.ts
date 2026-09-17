@@ -5,6 +5,7 @@ import { ALGERIA_WILAYAS } from '@zr-erp/shared';
 
 export function seedDatabase(db: Database.Database): void {
   logger.info('Starting database seeding...');
+  const isClean = process.env.NODE_ENV === 'production' || process.env.CLEAN_SEED === 'true';
 
   const seedTx = db.transaction(() => {
     // 1. Roles
@@ -56,14 +57,14 @@ export function seedDatabase(db: Database.Database): void {
         id: 'partner-riad',
         name: 'Riad',
         ownership_percentage: 30.0,
-        initial_capital: 300000,
+        initial_capital: isClean ? 0 : 300000,
         notes: 'Co-fondateur ZR Factory (30% Capital)'
       },
       {
         id: 'partner-brother',
         name: 'Brother',
         ownership_percentage: 70.0,
-        initial_capital: 700000,
+        initial_capital: isClean ? 0 : 700000,
         notes: 'Co-fondateur ZR Factory (70% Capital)'
       }
     ];
@@ -87,7 +88,7 @@ export function seedDatabase(db: Database.Database): void {
         id: 'acc-caisse-principale',
         name: 'Caisse Principale (Cash)',
         type: 'CASH',
-        balance: 150000,
+        balance: isClean ? 0 : 150000,
         currency: 'DZD',
         is_default: 1
       },
@@ -95,7 +96,7 @@ export function seedDatabase(db: Database.Database): void {
         id: 'acc-ccp-algerie-poste',
         name: 'Compte CCP (Algérie Poste)',
         type: 'CCP',
-        balance: 80000,
+        balance: isClean ? 0 : 80000,
         currency: 'DZD',
         is_default: 0
       },
@@ -103,7 +104,7 @@ export function seedDatabase(db: Database.Database): void {
         id: 'acc-baridimob',
         name: 'Compte BaridiMob ZR',
         type: 'BARIDIMOB',
-        balance: 45000,
+        balance: isClean ? 0 : 45000,
         currency: 'DZD',
         is_default: 0
       }
@@ -366,7 +367,8 @@ export function seedDatabase(db: Database.Database): void {
     }
 
     // 10. Seed Sample Print-on-Demand Orders
-    const sampleOrders = [
+    if (!isClean) {
+      const sampleOrders = [
       {
         id: 'ord-seed-001',
         orderNumber: 'ZR-202609-0001',
@@ -559,6 +561,7 @@ export function seedDatabase(db: Database.Database): void {
         );
       }
     }
+  }
 
     // 11. Seed Algerian Suppliers
     const suppliers = [
@@ -598,7 +601,8 @@ export function seedDatabase(db: Database.Database): void {
     }
 
     // 12. Seed Sample Expenses (Operating & Production Costs)
-    const expenses = [
+    if (!isClean) {
+      const expenses = [
       {
         id: 'exp-seed-001',
         categoryId: 'cat-tshirts',
@@ -694,156 +698,179 @@ export function seedDatabase(db: Database.Database): void {
         exp.createdBy
       );
     }
+  }
 
     // 13. Seed Partner Transactions (Contributions & Withdrawals)
-    const partnerTransactions = [
-      {
-        id: 'ptx-seed-001',
-        partnerId: 'partner-riad',
-        type: 'CONTRIBUTION',
-        amount: 50000,
-        date: '2026-09-03',
-        description: 'Apport de capital en numéraire pour stock encres DTF',
-        reference: 'VIR-20260903-R',
-        createdBy: 'usr-riad',
-      },
-      {
-        id: 'ptx-seed-002',
-        partnerId: 'partner-brother',
-        type: 'CONTRIBUTION',
-        amount: 100000,
-        date: '2026-09-04',
-        description: 'Apport en numéraire pour agrandissement parc d\'impression',
-        reference: 'VIR-20260904-B',
-        createdBy: 'usr-brother',
-      },
-      {
-        id: 'ptx-seed-003',
-        partnerId: 'partner-brother',
-        type: 'WITHDRAWAL',
-        amount: 30000,
-        date: '2026-09-14',
-        description: 'Retrait partiel sur capital / avance personnelle',
-        reference: 'RET-20260914-B',
-        createdBy: 'usr-brother',
-      },
-    ];
+    if (!isClean) {
+      const partnerTransactions = [
+        {
+          id: 'ptx-seed-001',
+          partnerId: 'partner-riad',
+          type: 'CONTRIBUTION',
+          amount: 50000,
+          date: '2026-09-03',
+          description: 'Apport de capital en numéraire pour stock encres DTF',
+          reference: 'VIR-20260903-R',
+          createdBy: 'usr-riad',
+        },
+        {
+          id: 'ptx-seed-002',
+          partnerId: 'partner-brother',
+          type: 'CONTRIBUTION',
+          amount: 100000,
+          date: '2026-09-04',
+          description: 'Apport en numéraire pour agrandissement parc d\'impression',
+          reference: 'VIR-20260904-B',
+          createdBy: 'usr-brother',
+        },
+        {
+          id: 'ptx-seed-003',
+          partnerId: 'partner-brother',
+          type: 'WITHDRAWAL',
+          amount: 30000,
+          date: '2026-09-14',
+          description: 'Retrait partiel sur capital / avance personnelle',
+          reference: 'RET-20260914-B',
+          createdBy: 'usr-brother',
+        },
+      ];
 
-    const insertPartnerTx = db.prepare(`
-      INSERT OR IGNORE INTO partner_transactions (
-        id, partner_id, type, amount, date, description, reference, created_by, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'))
-    `);
+      const insertPartnerTx = db.prepare(`
+        INSERT OR IGNORE INTO partner_transactions (
+          id, partner_id, type, amount, date, description, reference, created_by, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'))
+      `);
 
-    for (const ptx of partnerTransactions) {
-      insertPartnerTx.run(
-        ptx.id,
-        ptx.partnerId,
-        ptx.type,
-        ptx.amount,
-        ptx.date,
-        ptx.description,
-        ptx.reference,
-        ptx.createdBy
-      );
+      for (const ptx of partnerTransactions) {
+        insertPartnerTx.run(
+          ptx.id,
+          ptx.partnerId,
+          ptx.type,
+          ptx.amount,
+          ptx.date,
+          ptx.description,
+          ptx.reference,
+          ptx.createdBy
+        );
+      }
     }
 
     // 14. Seed Initial Cash Transactions Ledger
-    const initialCashTx = [
-      {
-        id: 'ctx-seed-001',
-        cashAccountId: 'acc-caisse-principale',
-        type: 'PARTNER_CONTRIBUTION',
-        amount: 50000,
-        balanceAfter: 50000,
-        date: '2026-09-03',
-        description: 'Apport de capital [Riad]: stock encres DTF',
-        referenceId: 'ptx-seed-001',
-      },
-      {
-        id: 'ctx-seed-002',
-        cashAccountId: 'acc-caisse-principale',
-        type: 'PARTNER_CONTRIBUTION',
-        amount: 100000,
-        balanceAfter: 150000,
-        date: '2026-09-04',
-        description: 'Apport de capital [Brother]: parc d\'impression',
-        referenceId: 'ptx-seed-002',
-      },
-      {
-        id: 'ctx-seed-003',
-        cashAccountId: 'acc-ccp-algerie-poste',
-        type: 'ADJUSTMENT',
-        amount: 80000,
-        balanceAfter: 80000,
-        date: '2026-09-01',
-        description: 'Solde initial ouverture CCP Algérie Poste',
-        referenceId: null,
-      },
-      {
-        id: 'ctx-seed-004',
-        cashAccountId: 'acc-baridimob',
-        type: 'ADJUSTMENT',
-        amount: 45000,
-        balanceAfter: 45000,
-        date: '2026-09-01',
-        description: 'Solde initial ouverture BaridiMob ZR',
-        referenceId: null,
-      },
-    ];
+    if (!isClean) {
+      const initialCashTx = [
+        {
+          id: 'ctx-seed-001',
+          cashAccountId: 'acc-caisse-principale',
+          type: 'PARTNER_CONTRIBUTION',
+          amount: 50000,
+          balanceAfter: 50000,
+          date: '2026-09-03',
+          description: 'Apport de capital [Riad]: stock encres DTF',
+          referenceId: 'ptx-seed-001',
+        },
+        {
+          id: 'ctx-seed-002',
+          cashAccountId: 'acc-caisse-principale',
+          type: 'PARTNER_CONTRIBUTION',
+          amount: 100000,
+          balanceAfter: 150000,
+          date: '2026-09-04',
+          description: 'Apport de capital [Brother]: parc d\'impression',
+          referenceId: 'ptx-seed-002',
+        },
+        {
+          id: 'ctx-seed-003',
+          cashAccountId: 'acc-ccp-algerie-poste',
+          type: 'ADJUSTMENT',
+          amount: 80000,
+          balanceAfter: 80000,
+          date: '2026-09-01',
+          description: 'Solde initial ouverture CCP Algérie Poste',
+          referenceId: null,
+        },
+        {
+          id: 'ctx-seed-004',
+          cashAccountId: 'acc-baridimob',
+          type: 'ADJUSTMENT',
+          amount: 45000,
+          balanceAfter: 45000,
+          date: '2026-09-01',
+          description: 'Solde initial ouverture BaridiMob ZR',
+          referenceId: null,
+        },
+      ];
 
-    const insertCashTx = db.prepare(`
-      INSERT OR IGNORE INTO cash_transactions (
-        id, cash_account_id, type, amount, balance_after, date, description, reference_id, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'))
-    `);
+      const insertCashTx = db.prepare(`
+        INSERT OR IGNORE INTO cash_transactions (
+          id, cash_account_id, type, amount, balance_after, date, description, reference_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'))
+      `);
 
-    for (const ctx of initialCashTx) {
-      insertCashTx.run(
-        ctx.id,
-        ctx.cashAccountId,
-        ctx.type,
-        ctx.amount,
-        ctx.balanceAfter,
-        ctx.date,
-        ctx.description,
-        ctx.referenceId
-      );
+      for (const ctx of initialCashTx) {
+        insertCashTx.run(
+          ctx.id,
+          ctx.cashAccountId,
+          ctx.type,
+          ctx.amount,
+          ctx.balanceAfter,
+          ctx.date,
+          ctx.description,
+          ctx.referenceId
+        );
+      }
     }
 
     // 15. Seed Accounting Periods & Historical Profit Distribution
-    const periods = [
-      {
-        id: 'period-2026-08',
-        name: 'Août 2026',
-        startDate: '2026-08-01',
-        endDate: '2026-08-31',
-        isClosed: 1,
-        isDistributed: 1,
-        revenue: 450000,
-        cogs: 180000,
-        operatingExpenses: 120000,
-        grossProfit: 270000,
-        netProfit: 150000,
-        closedAt: '2026-08-31T23:59:59Z',
-        distributedAt: '2026-09-01T10:00:00Z',
-      },
-      {
-        id: 'period-2026-09',
-        name: 'Septembre 2026',
-        startDate: '2026-09-01',
-        endDate: '2026-09-30',
-        isClosed: 0,
-        isDistributed: 0,
-        revenue: 0,
-        cogs: 0,
-        operatingExpenses: 0,
-        grossProfit: 0,
-        netProfit: 0,
-        closedAt: null,
-        distributedAt: null,
-      },
-    ];
+    const periods = isClean
+      ? [
+          {
+            id: 'period-2026-09',
+            name: 'Septembre 2026',
+            startDate: '2026-09-01',
+            endDate: '2026-09-30',
+            isClosed: 0,
+            isDistributed: 0,
+            revenue: 0,
+            cogs: 0,
+            operatingExpenses: 0,
+            grossProfit: 0,
+            netProfit: 0,
+            closedAt: null,
+            distributedAt: null,
+          },
+        ]
+      : [
+          {
+            id: 'period-2026-08',
+            name: 'Août 2026',
+            startDate: '2026-08-01',
+            endDate: '2026-08-31',
+            isClosed: 1,
+            isDistributed: 1,
+            revenue: 450000,
+            cogs: 180000,
+            operatingExpenses: 120000,
+            grossProfit: 270000,
+            netProfit: 150000,
+            closedAt: '2026-08-31T23:59:59Z',
+            distributedAt: '2026-09-01T10:00:00Z',
+          },
+          {
+            id: 'period-2026-09',
+            name: 'Septembre 2026',
+            startDate: '2026-09-01',
+            endDate: '2026-09-30',
+            isClosed: 0,
+            isDistributed: 0,
+            revenue: 0,
+            cogs: 0,
+            operatingExpenses: 0,
+            grossProfit: 0,
+            netProfit: 0,
+            closedAt: null,
+            distributedAt: null,
+          },
+        ];
 
     const insertPeriod = db.prepare(`
       INSERT OR IGNORE INTO accounting_periods (
@@ -871,32 +898,34 @@ export function seedDatabase(db: Database.Database): void {
       );
     }
 
-    // Seed August 2026 Profit Distributions (Riad 30% = 45k DA, Brother 70% = 105k DA)
-    const distributions = [
-      {
-        id: 'pdist-2026-08-riad',
-        periodId: 'period-2026-08',
-        partnerId: 'partner-riad',
-        percentage: 30.0,
-        share: 45000,
-      },
-      {
-        id: 'pdist-2026-08-brother',
-        periodId: 'period-2026-08',
-        partnerId: 'partner-brother',
-        percentage: 70.0,
-        share: 105000,
-      },
-    ];
+    if (!isClean) {
+      // Seed August 2026 Profit Distributions (Riad 30% = 45k DA, Brother 70% = 105k DA)
+      const distributions = [
+        {
+          id: 'pdist-2026-08-riad',
+          periodId: 'period-2026-08',
+          partnerId: 'partner-riad',
+          percentage: 30.0,
+          share: 45000,
+        },
+        {
+          id: 'pdist-2026-08-brother',
+          periodId: 'period-2026-08',
+          partnerId: 'partner-brother',
+          percentage: 70.0,
+          share: 105000,
+        },
+      ];
 
-    const insertDist = db.prepare(`
-      INSERT OR IGNORE INTO profit_distributions (
-        id, accounting_period_id, partner_id, ownership_percentage, profit_share, created_at
-      ) VALUES (?, ?, ?, ?, ?, '2026-09-01 10:00:00')
-    `);
+      const insertDist = db.prepare(`
+        INSERT OR IGNORE INTO profit_distributions (
+          id, accounting_period_id, partner_id, ownership_percentage, profit_share, created_at
+        ) VALUES (?, ?, ?, ?, ?, '2026-09-01 10:00:00')
+      `);
 
-    for (const d of distributions) {
-      insertDist.run(d.id, d.periodId, d.partnerId, d.percentage, d.share);
+      for (const d of distributions) {
+        insertDist.run(d.id, d.periodId, d.partnerId, d.percentage, d.share);
+      }
     }
 
     // 16. Initial Audit Trail
@@ -933,93 +962,95 @@ export function seedDatabase(db: Database.Database): void {
     }
 
     // 18. Seed Production Items (Atelier Floor Kanban)
-    try {
-      const sampleProdItems = [
-        {
-          id: 'pi-seed-01',
-          order_id: 'ord-seed-004',
-          order_item_id: 'oi-seed-05',
-          status: 'PENDING_DESIGN',
-          assigned_operator_id: 'usr-employee',
-          operator_notes: 'En attente de validation maquette client',
-          defect_count: 0,
-          defect_reason: null,
-          started_at: null,
-          completed_at: null,
-        },
-        {
-          id: 'pi-seed-02',
-          order_id: 'ord-seed-003',
-          order_item_id: 'oi-seed-03',
-          status: 'READY_FOR_PRINT',
-          assigned_operator_id: 'usr-employee',
-          operator_notes: 'Planche DTF A3 calibrée, prête pour impression',
-          defect_count: 0,
-          defect_reason: null,
-          started_at: null,
-          completed_at: null,
-        },
-        {
-          id: 'pi-seed-03',
-          order_id: 'ord-seed-003',
-          order_item_id: 'oi-seed-04',
-          status: 'PRINTING_DTF',
-          assigned_operator_id: 'usr-employee',
-          operator_notes: 'Impression en cours sur imprimante DTF HD 60cm',
-          defect_count: 0,
-          defect_reason: null,
-          started_at: '2026-09-17 10:00:00',
-          completed_at: null,
-        },
-        {
-          id: 'pi-seed-04',
-          order_id: 'ord-seed-002',
-          order_item_id: 'oi-seed-02',
-          status: 'HEAT_PRESS',
-          assigned_operator_id: 'usr-employee',
-          operator_notes: 'Presse 160°C pendant 15s - Pelage à froid',
-          defect_count: 0,
-          defect_reason: null,
-          started_at: '2026-09-17 09:30:00',
-          completed_at: null,
-        },
-        {
-          id: 'pi-seed-05',
-          order_id: 'ord-seed-001',
-          order_item_id: 'oi-seed-01',
-          status: 'QUALITY_CHECK',
-          assigned_operator_id: 'usr-admin',
-          operator_notes: 'Contrôle adhérence et étirement OK',
-          defect_count: 0,
-          defect_reason: null,
-          started_at: '2026-09-16 14:00:00',
-          completed_at: null,
-        },
-      ];
+    if (!isClean) {
+      try {
+        const sampleProdItems = [
+          {
+            id: 'pi-seed-01',
+            order_id: 'ord-seed-004',
+            order_item_id: 'oi-seed-05',
+            status: 'PENDING_DESIGN',
+            assigned_operator_id: 'usr-employee',
+            operator_notes: 'En attente de validation maquette client',
+            defect_count: 0,
+            defect_reason: null,
+            started_at: null,
+            completed_at: null,
+          },
+          {
+            id: 'pi-seed-02',
+            order_id: 'ord-seed-003',
+            order_item_id: 'oi-seed-03',
+            status: 'READY_FOR_PRINT',
+            assigned_operator_id: 'usr-employee',
+            operator_notes: 'Planche DTF A3 calibrée, prête pour impression',
+            defect_count: 0,
+            defect_reason: null,
+            started_at: null,
+            completed_at: null,
+          },
+          {
+            id: 'pi-seed-03',
+            order_id: 'ord-seed-003',
+            order_item_id: 'oi-seed-04',
+            status: 'PRINTING_DTF',
+            assigned_operator_id: 'usr-employee',
+            operator_notes: 'Impression en cours sur imprimante DTF HD 60cm',
+            defect_count: 0,
+            defect_reason: null,
+            started_at: '2026-09-17 10:00:00',
+            completed_at: null,
+          },
+          {
+            id: 'pi-seed-04',
+            order_id: 'ord-seed-002',
+            order_item_id: 'oi-seed-02',
+            status: 'HEAT_PRESS',
+            assigned_operator_id: 'usr-employee',
+            operator_notes: 'Presse 160°C pendant 15s - Pelage à froid',
+            defect_count: 0,
+            defect_reason: null,
+            started_at: '2026-09-17 09:30:00',
+            completed_at: null,
+          },
+          {
+            id: 'pi-seed-05',
+            order_id: 'ord-seed-001',
+            order_item_id: 'oi-seed-01',
+            status: 'QUALITY_CHECK',
+            assigned_operator_id: 'usr-admin',
+            operator_notes: 'Contrôle adhérence et étirement OK',
+            defect_count: 0,
+            defect_reason: null,
+            started_at: '2026-09-16 14:00:00',
+            completed_at: null,
+          },
+        ];
 
-      const insertProdItem = db.prepare(`
-        INSERT OR IGNORE INTO production_items (
-          id, order_id, order_item_id, status, assigned_operator_id, operator_notes,
-          defect_count, defect_reason, started_at, completed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'), DATETIME('now'))
-      `);
+        const insertProdItem = db.prepare(`
+          INSERT OR IGNORE INTO production_items (
+            id, order_id, order_item_id, status, assigned_operator_id, operator_notes,
+            defect_count, defect_reason, started_at, completed_at, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'), DATETIME('now'))
+        `);
 
-      for (const p of sampleProdItems) {
-        insertProdItem.run(
-          p.id,
-          p.order_id,
-          p.order_item_id,
-          p.status,
-          p.assigned_operator_id,
-          p.operator_notes,
-          p.defect_count,
-          p.defect_reason,
-          p.started_at,
-          p.completed_at
-        );
+        for (const p of sampleProdItems) {
+          insertProdItem.run(
+            p.id,
+            p.order_id,
+            p.order_item_id,
+            p.status,
+            p.assigned_operator_id,
+            p.operator_notes,
+            p.defect_count,
+            p.defect_reason,
+            p.started_at,
+            p.completed_at
+          );
+        }
+      } catch {
+        // Table might not exist in old migration test setups
       }
-    } catch {
-      // Table might not exist in old migration test setups
     }
 
     // 20. Seed 58 Wilayas Shipping Rates & Pricing Matrix
@@ -1043,40 +1074,42 @@ export function seedDatabase(db: Database.Database): void {
       }
 
       // 21. Seed Sample Shipping Manifest & Carrier Orders
-      const insertManifest = db.prepare(`
-        INSERT OR IGNORE INTO shipping_manifests (
-          id, manifest_number, carrier, driver_name, driver_phone, vehicle_plate,
-          total_parcels, total_cod_amount, status, notes, created_by, dispatched_at, completed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'), DATETIME('now'))
-      `);
+      if (!isClean) {
+        const insertManifest = db.prepare(`
+          INSERT OR IGNORE INTO shipping_manifests (
+            id, manifest_number, carrier, driver_name, driver_phone, vehicle_plate,
+            total_parcels, total_cod_amount, status, notes, created_by, dispatched_at, completed_at, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATETIME('now'), DATETIME('now'))
+        `);
 
-      insertManifest.run(
-        'man-seed-001',
-        'MAN-2026-001',
-        'YALIDINE',
-        'Amine Benali (Yalidine Express)',
-        '0550123456',
-        '00456-116-16',
-        1,
-        11300,
-        'DISPATCHED',
-        'Ramassage agence Alger Centre - Bordereau 1 colis',
-        'usr-employee',
-        '2026-09-17 11:30:00',
-        null
-      );
+        insertManifest.run(
+          'man-seed-001',
+          'MAN-2026-001',
+          'YALIDINE',
+          'Amine Benali (Yalidine Express)',
+          '0550123456',
+          '00456-116-16',
+          1,
+          11300,
+          'DISPATCHED',
+          'Ramassage agence Alger Centre - Bordereau 1 colis',
+          'usr-employee',
+          '2026-09-17 11:30:00',
+          null
+        );
 
-      // Link sample order ord-seed-002 to manifest
-      db.prepare(`
-        UPDATE orders
-        SET shipping_manifest_id = 'man-seed-001',
-            delivery_company = 'Yalidine Express',
-            delivery_type = 'STOP_DESK',
-            tracking_number = 'yal-2609-00102',
-            status = 'SHIPPED',
-            dispatched_at = '2026-09-17 11:30:00'
-        WHERE id = 'ord-seed-002'
-      `).run();
+        // Link sample order ord-seed-002 to manifest
+        db.prepare(`
+          UPDATE orders
+          SET shipping_manifest_id = 'man-seed-001',
+              delivery_company = 'Yalidine Express',
+              delivery_type = 'STOP_DESK',
+              tracking_number = 'yal-2609-00102',
+              status = 'SHIPPED',
+              dispatched_at = '2026-09-17 11:30:00'
+          WHERE id = 'ord-seed-002'
+        `).run();
+      }
     } catch {
       // Table might not exist in old migration test setups
     }
