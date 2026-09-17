@@ -80,6 +80,27 @@ export class SystemService {
       WHERE key = ?
     `).run(value, now, key);
 
+    // Synchronize statutory ownership in partners table
+    if (key === 'partner_split_riad') {
+      const pct = parseFloat(value);
+      if (!isNaN(pct)) {
+        this.db.prepare(`
+          UPDATE partners
+          SET ownership_percentage = ?, updated_at = ?
+          WHERE id = 'partner-riad'
+        `).run(pct, now);
+      }
+    } else if (key === 'partner_split_brother') {
+      const pct = parseFloat(value);
+      if (!isNaN(pct)) {
+        this.db.prepare(`
+          UPDATE partners
+          SET ownership_percentage = ?, updated_at = ?
+          WHERE id = 'partner-brother'
+        `).run(pct, now);
+      }
+    }
+
     this.logAudit({
       userId: actorId || null,
       userName: actorName || null,

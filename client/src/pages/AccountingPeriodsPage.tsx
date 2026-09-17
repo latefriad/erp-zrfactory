@@ -3,7 +3,7 @@ import { fetchApi } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDate } from '../lib/formatters';
-import { AccountingPeriod, ProfitDistribution, UserRole } from '@zr-erp/shared';
+import { AccountingPeriod, ProfitDistribution, Partner, UserRole } from '@zr-erp/shared';
 import {
   Calendar,
   Lock,
@@ -25,6 +25,7 @@ export const AccountingPeriodsPage: React.FC = () => {
 
   const [periods, setPeriods] = useState<AccountingPeriod[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState<(AccountingPeriod & { distributions?: ProfitDistribution[] }) | null>(null);
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,11 +52,15 @@ export const AccountingPeriodsPage: React.FC = () => {
     setError(null);
 
     try {
-      const res = await fetchApi<{ periods: AccountingPeriod[] }>('/accounting-periods');
-      setPeriods(res.periods || []);
-      if (res.periods?.length > 0 && !selectedPeriod) {
+      const [periodsRes, partnersRes] = await Promise.all([
+        fetchApi<{ periods: AccountingPeriod[] }>('/accounting-periods'),
+        fetchApi<{ partners: Partner[] }>('/partners').catch(() => ({ partners: [] })),
+      ]);
+      setPeriods(periodsRes.periods || []);
+      setPartners(partnersRes.partners || []);
+      if (periodsRes.periods?.length > 0 && !selectedPeriod) {
         // Load details of the first period
-        loadPeriodDetails(res.periods[0].id);
+        loadPeriodDetails(periodsRes.periods[0].id);
       }
     } catch (err: any) {
       console.error('Failed to load accounting periods:', err);
@@ -518,7 +523,7 @@ export const AccountingPeriodsPage: React.FC = () => {
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
                   <PieChart className="w-3.5 h-3.5 text-indigo-500" />
-                  Répartition Statutaire (30% / 70%)
+                  Répartition Statutaire des Bénéfices
                 </h4>
 
                 {selectedPeriod.distributions && selectedPeriod.distributions.length > 0 ? (
@@ -751,31 +756,29 @@ export const AccountingPeriodsPage: React.FC = () => {
 
             {/* Split Preview */}
             <div className="space-y-3 mb-6">
-              <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-900 text-sm block">Riad</span>
-                  <span className="text-xs text-slate-500 font-medium">Quote-part statutaire : 30.0%</span>
+              {partners.length > 0 ? (
+                partners.map(p => {
+                  const share = Math.round(periodToOperate.netProfit * (p.ownershipPercentage / 100));
+                  return (
+                    <div key={p.id} className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-slate-900 text-sm block">{p.name}</span>
+                        <span className="text-xs text-slate-500 font-medium">Quote-part statutaire : {p.ownershipPercentage}%</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-base font-black text-emerald-600 font-mono block">
+                          +{formatCurrency(share, language)}
+                        </span>
+                        <span className="text-[10px] text-slate-400">Crédité au capital associé</span>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-center text-xs text-slate-400">
+                  Chargement des quotes-parts des associés...
                 </div>
-                <div className="text-right">
-                  <span className="text-base font-black text-emerald-600 font-mono block">
-                    +{formatCurrency(Math.round(periodToOperate.netProfit * 0.3), language)}
-                  </span>
-                  <span className="text-[10px] text-slate-400">Crédité au capital associé</span>
-                </div>
-              </div>
-
-              <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-slate-900 text-sm block">Brother</span>
-                  <span className="text-xs text-slate-500 font-medium">Quote-part statutaire : 70.0%</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-base font-black text-emerald-600 font-mono block">
-                    +{formatCurrency(Math.round(periodToOperate.netProfit * 0.7), language)}
-                  </span>
-                  <span className="text-[10px] text-slate-400">Crédité au capital associé</span>
-                </div>
-              </div>
+              )}
             </div>
 
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800 flex gap-2 items-start mb-6">

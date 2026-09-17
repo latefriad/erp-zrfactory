@@ -21,6 +21,8 @@ import {
   Building,
   History,
   Calendar,
+  PieChart,
+  CheckCircle2,
 } from 'lucide-react';
 import { AccountingPeriodsPage } from './AccountingPeriodsPage';
 
@@ -44,6 +46,8 @@ export const PartnersPage: React.FC = () => {
   const [isContributionModalOpen, setIsContributionModalOpen] = useState<boolean>(false);
   const [isWithdrawalModalOpen, setIsWithdrawalModalOpen] = useState<boolean>(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState<boolean>(false);
+  const [isSplitModalOpen, setIsSplitModalOpen] = useState<boolean>(false);
+  const [splitState, setSplitState] = useState<Record<string, string>>({});
 
   // Contribution Form State
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
@@ -269,6 +273,44 @@ export const PartnersPage: React.FC = () => {
     }
   };
 
+  const openSplitModal = () => {
+    setFormError(null);
+    const initial: Record<string, string> = {};
+    partners.forEach(p => {
+      initial[p.id] = String(p.ownershipPercentage);
+    });
+    setSplitState(initial);
+    setIsSplitModalOpen(true);
+  };
+
+  const handleSaveSplit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    const total = partners.reduce((sum, p) => sum + (parseFloat(splitState[p.id] || '0') || 0), 0);
+    if (Math.round(total * 100) / 100 !== 100) {
+      setFormError(`La somme des quotes-parts doit être exactement égale à 100% (Actuellement : ${total}%).`);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      for (const p of partners) {
+        const val = parseFloat(splitState[p.id] || '0');
+        await fetchApi(`/partners/${p.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ ownershipPercentage: val }),
+        });
+      }
+      setIsSplitModalOpen(false);
+      await loadData();
+    } catch (err: any) {
+      setFormError(err.message || 'Erreur lors de la mise à jour des parts sociales');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // If user lacks finance access
   if (!canAccessFinance) {
     return (
@@ -352,13 +394,22 @@ export const PartnersPage: React.FC = () => {
             <div>
               <h1 className="text-xl font-bold text-slate-900">Associés, Capital & Trésorerie</h1>
               <p className="text-xs text-slate-500">
-                Suivi du capital propre (Riad 30% / Brother 70%), prélèvements, et comptes de caisse en double écriture
+                Suivi du capital propre, quotes-parts statutaires des associés, prélèvements et trésorerie multi-comptes
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={openSplitModal}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+            >
+              <PieChart className="w-4 h-4 text-indigo-400" />
+              Modifier Répartition
+            </button>
+          )}
           <button
             onClick={() => {
               setFormError(null);
@@ -1213,6 +1264,139 @@ export const PartnersPage: React.FC = () => {
                     </>
                   ) : (
                     'Exécuter le Transfert'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: MODIFIER LA RÉPARTITION STATUTAIRE */}
+      {isSplitModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2 text-indigo-600">
+                <PieChart className="w-5 h-5" />
+                <h3 className="font-bold text-slate-900 text-base">
+                  {language === 'ar' ? 'تعديل توزيع الأرباح القانوني' : 'Répartition Statutaire des Bénéfices'}
+                </h3>
+              </div>
+              <button onClick={() => setIsSplitModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {formError && (
+              <div className="mb-4 bg-rose-50 border border-rose-200 p-3 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveSplit} className="space-y-4">
+              <p className="text-xs text-slate-500">
+                {language === 'ar'
+                  ? 'حدد نسبة الأرباح لكل شريك. يجب أن يكون المجموع 100% بالضبط.'
+                  : 'Définissez la quote-part statutaire de chaque associé sur les dividendes. Le total doit faire exactement 100%.'}
+              </p>
+
+              <div className="space-y-3">
+                {partners.map(p => (
+                  <div key={p.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-800">{p.name}</span>
+                      <span className="text-slate-400 text-[11px]">Actuel : {p.ownershipPercentage}%</span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        required
+                        value={splitState[p.id] ?? p.ownershipPercentage}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setSplitState(prev => ({ ...prev, [p.id]: val }));
+                        }}
+                        className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold"
+                        placeholder="Ex: 50"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                        %
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total & Helper */}
+              {(() => {
+                const total = Math.round(
+                  partners.reduce((sum, p) => sum + (parseFloat(splitState[p.id] || '0') || 0), 0) * 100
+                ) / 100;
+                return (
+                  <div className="flex items-center justify-between pt-1">
+                    {total === 100 ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Total : 100% (Valide)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                        Total : {total}% (doit être 100%)
+                      </span>
+                    )}
+
+                    {partners.length === 2 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const firstId = partners[0].id;
+                          const secondId = partners[1].id;
+                          const firstVal = parseFloat(splitState[firstId] || '0') || 0;
+                          setSplitState({
+                            [firstId]: String(firstVal),
+                            [secondId]: String(Math.max(0, 100 - firstVal)),
+                          });
+                        }}
+                        className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
+                      >
+                        Équilibrer à 100%
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsSplitModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    isSubmitting ||
+                    Math.round(
+                      partners.reduce((sum, p) => sum + (parseFloat(splitState[p.id] || '0') || 0), 0) * 100
+                    ) / 100 !== 100
+                  }
+                  className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Enregistrement...
+                    </>
+                  ) : (
+                    'Enregistrer la Répartition'
                   )}
                 </button>
               </div>

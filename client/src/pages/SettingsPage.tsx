@@ -126,6 +126,27 @@ export const SettingsPage: React.FC = () => {
 
     try {
       const keysToSave = ['company_name', 'currency', 'default_delivery_fee', 'partner_split_riad', 'partner_split_brother'];
+      const riadSplit = parseFloat(settingsMap['partner_split_riad'] || '30');
+      const brotherSplit = parseFloat(settingsMap['partner_split_brother'] || '70');
+
+      if (isNaN(riadSplit) || isNaN(brotherSplit) || riadSplit < 0 || brotherSplit < 0) {
+        setSettingsNotice({
+          type: 'error',
+          message: 'Les quotes-parts des associés doivent être des nombres positifs.',
+        });
+        setSavingSettings(false);
+        return;
+      }
+
+      if (Math.round((riadSplit + brotherSplit) * 100) / 100 !== 100) {
+        setSettingsNotice({
+          type: 'error',
+          message: `La somme des quotes-parts doit être exactement égale à 100% (Actuellement : ${riadSplit + brotherSplit}%).`,
+        });
+        setSavingSettings(false);
+        return;
+      }
+
       for (const k of keysToSave) {
         if (settingsMap[k] !== undefined) {
           await fetchApi(`/system/settings/${k}`, {
@@ -150,6 +171,10 @@ export const SettingsPage: React.FC = () => {
       checkIntegrity();
     }
   }, [isAdmin]);
+
+  const riadPct = parseFloat(settingsMap['partner_split_riad'] || '30') || 0;
+  const brotherPct = parseFloat(settingsMap['partner_split_brother'] || '70') || 0;
+  const totalSplit = Math.round((riadPct + brotherPct) * 100) / 100;
 
   return (
     <div className="space-y-6">
@@ -297,22 +322,113 @@ export const SettingsPage: React.FC = () => {
                   <p className="text-xs text-slate-400">Montant pré-rempli lors de la création d'une nouvelle commande client.</p>
                 </div>
 
-                {/* Equity Splits Notice */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                    {language === 'ar' ? 'توزيع الأرباح القانوني (Riad / Frère)' : 'Répartition Statutaire des Bénéfices'}
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                      <span className="text-xs text-slate-500 block">Riad (30%)</span>
-                      <span className="font-bold text-slate-900 text-sm">{settingsMap['partner_split_riad'] || '30'} %</span>
-                    </div>
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                      <span className="text-xs text-slate-500 block">Frère (70%)</span>
-                      <span className="font-bold text-slate-900 text-sm">{settingsMap['partner_split_brother'] || '70'} %</span>
+                {/* Equity Splits Notice & Editable Inputs */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                      {language === 'ar' ? 'توزيع الأرباح القانوني (Riad / Frère)' : 'Répartition Statutaire des Bénéfices'}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {totalSplit === 100 ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          Total : 100%
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                          <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                          Total : {totalSplit}% (doit être égal à 100%)
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <p className="text-xs text-slate-400">Déterminé par le protocole d'accord des associés.</p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Riad Input Card */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 hover:border-slate-300 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700">Riad</span>
+                        <span className="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                          {settingsMap['partner_split_riad'] || '30'} %
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          disabled={!isAdmin || savingSettings}
+                          value={settingsMap['partner_split_riad'] ?? '30'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSettingsMap(prev => ({
+                              ...prev,
+                              partner_split_riad: val,
+                            }));
+                          }}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-60"
+                          placeholder="30"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                          %
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">Quote-part statutaire sur les dividendes</p>
+                    </div>
+
+                    {/* Frère Input Card */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 hover:border-slate-300 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700">Frère / Associé 2</span>
+                        <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                          {settingsMap['partner_split_brother'] || '70'} %
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          disabled={!isAdmin || savingSettings}
+                          value={settingsMap['partner_split_brother'] ?? '70'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSettingsMap(prev => ({
+                              ...prev,
+                              partner_split_brother: val,
+                            }));
+                          }}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 disabled:opacity-60"
+                          placeholder="70"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                          %
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">Quote-part statutaire sur les dividendes</p>
+                    </div>
+                  </div>
+
+                  {isAdmin && (
+                    <div className="flex items-center justify-between text-xs pt-1">
+                      <p className="text-slate-400">
+                        {language === 'ar' ? 'تعديل النسبة ينعكس تلقائياً على حسابات الشركاء وتوزيع الأرباح.' : 'Modifiable par l\'administrateur. S\'applique aux clôtures d\'exercices comptables et aux parts sociales.'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const r = parseFloat(settingsMap['partner_split_riad'] || '30') || 0;
+                          const b = Math.max(0, 100 - r);
+                          setSettingsMap(prev => ({ ...prev, partner_split_brother: String(b) }));
+                        }}
+                        className="text-blue-600 hover:text-blue-700 font-medium hover:underline text-[11px] whitespace-nowrap ml-2"
+                      >
+                        {language === 'ar' ? 'موازنة الشريك الثاني إلى 100%' : 'Équilibrer Frère à 100%'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 

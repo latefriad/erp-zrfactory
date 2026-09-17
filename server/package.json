@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
-    "build": "tsc && node -e \"const fs=require('fs'),path=require('path'); const src=path.resolve('src/db/migrations'), dst=path.resolve('dist/db/migrations'); if(fs.existsSync(src)){fs.mkdirSync(dst,{recursive:true}); fs.readdirSync(src).forEach(f=>fs.copyFileSync(path.join(src,f),path.join(dst,f)));}\"",
+    "build": "tsc && node -e \"const fs=require('fs'),path=require('path'); const src=path.resolve('src/db/migrations'), dst=path.resolve('dist/db/migrations'); if(fs.existsSync(src)){fs.cpSync(src, dst, {recursive: true});}\"",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",

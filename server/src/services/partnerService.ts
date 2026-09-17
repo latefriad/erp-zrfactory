@@ -370,6 +370,64 @@ export class PartnerService {
     }));
   }
 
+  public updatePartner(
+    id: string,
+    data: {
+      name?: string;
+      ownershipPercentage?: number;
+      phone?: string | null;
+      email?: string | null;
+      notes?: string | null;
+    },
+    actorId?: string,
+    actorName?: string
+  ): Partner {
+    const existing = this.db.prepare(`SELECT * FROM partners WHERE id = ?`).get(id) as any;
+    if (!existing) {
+      throw new NotFoundError(`Associé introuvable (ID: ${id})`);
+    }
+
+    if (data.ownershipPercentage !== undefined) {
+      const pct = Number(data.ownershipPercentage);
+      if (isNaN(pct) || pct < 0 || pct > 100) {
+        throw new ValidationError('La quote-part statutaire doit être comprise entre 0 et 100%');
+      }
+    }
+
+    const now = new Date().toISOString();
+    const updatedName = data.name !== undefined ? data.name : existing.name;
+    const updatedPercentage = data.ownershipPercentage !== undefined ? Number(data.ownershipPercentage) : Number(existing.ownership_percentage);
+    const updatedPhone = data.phone !== undefined ? data.phone : existing.phone;
+    const updatedEmail = data.email !== undefined ? data.email : existing.email;
+    const updatedNotes = data.notes !== undefined ? data.notes : existing.notes;
+
+    this.db.prepare(`
+      UPDATE partners
+      SET name = ?, ownership_percentage = ?, phone = ?, email = ?, notes = ?, updated_at = ?
+      WHERE id = ?
+    `).run(updatedName, updatedPercentage, updatedPhone, updatedEmail, updatedNotes, now, id);
+
+    // Sync settings if standard partner IDs
+    if (id === 'partner-riad' && data.ownershipPercentage !== undefined) {
+      this.db.prepare(`UPDATE settings SET value = ?, updated_at = ? WHERE key = 'partner_split_riad'`).run(String(updatedPercentage), now);
+    } else if (id === 'partner-brother' && data.ownershipPercentage !== undefined) {
+      this.db.prepare(`UPDATE settings SET value = ?, updated_at = ? WHERE key = 'partner_split_brother'`).run(String(updatedPercentage), now);
+    }
+
+    this.logAudit({
+      userId: actorId || null,
+      userName: actorName || null,
+      action: 'UPDATE_PARTNER',
+      entityType: 'PARTNER',
+      entityId: id,
+      oldValue: JSON.stringify({ name: existing.name, ownershipPercentage: existing.ownership_percentage }),
+      newValue: JSON.stringify({ name: updatedName, ownershipPercentage: updatedPercentage }),
+    });
+
+    const updatedRow = this.db.prepare(`SELECT * FROM partners WHERE id = ?`).get(id) as any;
+    return this.computePartnerMetrics(updatedRow);
+  }
+
   private computePartnerMetrics(row: any): Partner {
     const stats = this.db.prepare(`
       SELECT 

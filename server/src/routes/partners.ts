@@ -1,8 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { PartnerService } from '../services/partnerService';
-import { authenticate, requireFinanceAccess, requireOwnPartnerOrAdmin } from '../middleware/auth';
+import { authenticate, requireFinanceAccess, requireOwnPartnerOrAdmin, requireRole } from '../middleware/auth';
 import { validateBody } from '../middleware/validation';
 import { RecordContributionSchema, RecordWithdrawalSchema } from '../middleware/partnerValidation';
+import { UserRole } from '@zr-erp/shared';
 
 const router = Router();
 const partnerService = new PartnerService();
@@ -120,5 +121,24 @@ router.post(
     }
   }
 );
+
+// Update partner information & ownership percentage (ADMIN only)
+router.put('/:id', requireRole(UserRole.ADMIN), (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const partner = partnerService.updatePartner(
+      req.params.id,
+      req.body,
+      req.user?.id,
+      req.user?.name
+    );
+    res.json({
+      success: true,
+      message: 'Informations de l\'associé mises à jour avec succès',
+      data: { partner },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default router;

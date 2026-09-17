@@ -278,7 +278,7 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-slate-900">{t.partnerBalances}</h2>
               <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                Règle 30% / 70%
+                {data.partners.map(p => `${p.name} ${p.ownershipPercentage}%`).join(' / ')}
               </span>
             </div>
             <button
