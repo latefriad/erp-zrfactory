@@ -68,6 +68,9 @@ export const ProductsPage: React.FC = () => {
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [showAddComponentModal, setShowAddComponentModal] = useState<string | null>(null);
   const [showAddVariantModal, setShowAddVariantModal] = useState<string | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [variantToDelete, setVariantToDelete] = useState<{ productId: string; variantId: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // New product form
   const [newProd, setNewProd] = useState({
@@ -247,6 +250,36 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+    try {
+      setIsDeleting(true);
+      await fetchApi(`/products/${productToDelete.id}`, { method: 'DELETE' });
+      setNotice(`Produit "${productToDelete.name}" supprimé avec succès.`);
+      setProductToDelete(null);
+      loadData();
+    } catch (err: any) {
+      setNotice(`Erreur: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteVariant = async () => {
+    if (!variantToDelete) return;
+    try {
+      setIsDeleting(true);
+      await fetchApi(`/products/${variantToDelete.productId}/variants/${variantToDelete.variantId}`, { method: 'DELETE' });
+      setNotice(`Déclinaison "${variantToDelete.name}" supprimée avec succès.`);
+      setVariantToDelete(null);
+      loadData();
+    } catch (err: any) {
+      setNotice(`Erreur: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Quick stats
   const lowStockMaterials = materials.filter(m => m.isLowStock);
   const avgMargin = products.length > 0
@@ -411,6 +444,19 @@ export const ProductsPage: React.FC = () => {
                       </span>
                     </div>
 
+                    {!isViewer && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProductToDelete(product);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                        title="Supprimer ce produit"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+
                     <div className="p-1 text-slate-400">
                       {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                     </div>
@@ -549,6 +595,13 @@ export const ProductsPage: React.FC = () => {
                                       className="px-1.5 py-0.5 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded font-bold text-xs"
                                     >
                                       +5
+                                    </button>
+                                    <button
+                                      onClick={() => setVariantToDelete({ productId: product.id, variantId: v.id, name: v.name })}
+                                      className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors ml-0.5"
+                                      title="Supprimer cette variante"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
                                 )}
@@ -935,6 +988,85 @@ export const ProductsPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Product Confirmation Modal */}
+      {productToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-slate-900">
+                Supprimer le produit {productToDelete.name} ?
+              </h3>
+              <p className="text-xs text-slate-500 mt-2">
+                SKU : <strong className="font-mono text-slate-700">{productToDelete.sku}</strong>
+                <br />
+                Variantes : <strong className="text-slate-700">{productToDelete.variants.length}</strong> | Composants : <strong className="text-slate-700">{productToDelete.costComponents.length}</strong>
+              </p>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 text-left mt-4">
+                <strong>Attention :</strong> Cette action supprimera définitivement le produit, ses variantes et sa nomenclature de coût. Si des commandes existantes y font référence, la suppression sera bloquée.
+              </div>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setProductToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteProduct}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+              >
+                {isDeleting ? 'Suppression...' : 'Supprimer définitivement'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Variant Confirmation Modal */}
+      {variantToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-slate-900">
+                Supprimer la déclinaison {variantToDelete.name} ?
+              </h3>
+              <p className="text-xs text-slate-500 mt-2">
+                Cette action retirera cette déclinaison du catalogue de stock.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setVariantToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteVariant}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+              >
+                {isDeleting ? 'Suppression...' : 'Supprimer définitivement'}
+              </button>
+            </div>
           </div>
         </div>
       )}

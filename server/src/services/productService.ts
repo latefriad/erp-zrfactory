@@ -327,4 +327,46 @@ export class ProductService {
 
     return { id: variantId, newStock };
   }
+
+  public deleteProduct(id: string): void {
+    const existing = this.getProductById(id);
+
+    const orderItemCount = this.db.prepare(
+      'SELECT COUNT(*) as count FROM order_items WHERE product_id = ?'
+    ).get(id) as { count: number };
+
+    if (orderItemCount && orderItemCount.count > 0) {
+      throw new ConflictError(`Impossible de supprimer le produit "${existing.name}" car ${orderItemCount.count} commande(s) y font référence.`);
+    }
+
+    const transaction = this.db.transaction(() => {
+      this.db.prepare('DELETE FROM product_cost_components WHERE product_id = ?').run(id);
+      this.db.prepare('DELETE FROM product_variants WHERE product_id = ?').run(id);
+      this.db.prepare('DELETE FROM products WHERE id = ?').run(id);
+    });
+
+    transaction();
+  }
+
+  public deleteVariant(variantId: string): void {
+    const row = this.db.prepare('SELECT id, product_id, name FROM product_variants WHERE id = ?').get(variantId) as {
+      id: string;
+      product_id: string;
+      name: string;
+    } | undefined;
+
+    if (!row) {
+      throw new NotFoundError('Variante de produit introuvable.');
+    }
+
+    const orderItemCount = this.db.prepare(
+      'SELECT COUNT(*) as count FROM order_items WHERE variant_id = ?'
+    ).get(variantId) as { count: number };
+
+    if (orderItemCount && orderItemCount.count > 0) {
+      throw new ConflictError(`Impossible de supprimer la déclinaison "${row.name}" car elle est liée à ${orderItemCount.count} commande(s).`);
+    }
+
+    this.db.prepare('DELETE FROM product_variants WHERE id = ?').run(variantId);
+  }
 }

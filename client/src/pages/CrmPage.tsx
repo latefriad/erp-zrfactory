@@ -15,7 +15,9 @@ import {
   TrendingUp,
   X,
   AlertCircle,
-  FileText
+  FileText,
+  Trash2,
+  Edit2
 } from 'lucide-react';
 
 interface CustomerListItem extends Customer {
@@ -51,6 +53,87 @@ export const CrmPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const canManage = user?.role === 'ADMIN' || user?.role === 'PARTNER' || user?.role === 'EMPLOYEE';
+  const canDelete = user?.role === 'ADMIN' || user?.role === 'PARTNER';
+
+  const [customerToDelete, setCustomerToDelete] = useState<CustomerListItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  // Edit Customer State
+  const [editingCustomer, setEditingCustomer] = useState<{
+    id: string;
+    name: string;
+    phone: string;
+    email: string;
+    wilaya: string;
+    commune: string;
+    address: string;
+    notes: string;
+  } | null>(null);
+  const [editFormError, setEditFormError] = useState<string | null>(null);
+  const [isEditingSubmitting, setIsEditingSubmitting] = useState<boolean>(false);
+
+  const handleDeleteCustomer = async () => {
+    if (!customerToDelete) return;
+    try {
+      setIsDeleting(true);
+      await fetchApi(`/customers/${customerToDelete.id}`, { method: 'DELETE' });
+      setCustomerToDelete(null);
+      if (selectedCustomer?.id === customerToDelete.id) {
+        setSelectedCustomer(null);
+      }
+      loadCustomers();
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de la suppression du client');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleOpenEdit = (c: CustomerListItem | (CustomerProfile & { recentOrders: any[] })) => {
+    setEditingCustomer({
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email || '',
+      wilaya: c.wilaya || 'Alger',
+      commune: c.commune || '',
+      address: c.address || '',
+      notes: c.notes || '',
+    });
+    setEditFormError(null);
+  };
+
+  const handleUpdateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCustomer) return;
+    setEditFormError(null);
+
+    if (!editingCustomer.name.trim()) {
+      setEditFormError('Le nom du client est obligatoire.');
+      return;
+    }
+    if (!editingCustomer.phone.trim()) {
+      setEditFormError('Le numéro de téléphone est obligatoire.');
+      return;
+    }
+
+    try {
+      setIsEditingSubmitting(true);
+      await fetchApi(`/customers/${editingCustomer.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(editingCustomer),
+      });
+      setEditingCustomer(null);
+      loadCustomers();
+      if (selectedCustomer?.id === editingCustomer.id) {
+        viewCustomerProfile(editingCustomer.id);
+      }
+    } catch (err: any) {
+      setEditFormError(err.message || 'Erreur lors de la mise à jour');
+    } finally {
+      setIsEditingSubmitting(false);
+    }
+  };
 
   const loadCustomers = async () => {
     try {
@@ -323,13 +406,34 @@ export const CrmPage: React.FC = () => {
                     </td>
 
                     <td className="px-5 py-4 text-center">
-                      <button
-                        onClick={() => viewCustomerProfile(c.id)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition border border-purple-200"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Fiche Client</span>
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => viewCustomerProfile(c.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition border border-purple-200"
+                          title="Fiche client"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Fiche</span>
+                        </button>
+                        {canManage && (
+                          <button
+                            onClick={() => handleOpenEdit(c)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Modifier le client"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => setCustomerToDelete(c)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Supprimer le client"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -468,7 +572,35 @@ export const CrmPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {canManage && (
+                  <button
+                    onClick={() => handleOpenEdit(selectedCustomer)}
+                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Modifier</span>
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    onClick={() => {
+                      const found = customers.find((x) => x.id === selectedCustomer.id) || {
+                        ...selectedCustomer,
+                        totalOrders: selectedCustomer.totalOrders || 0,
+                        deliveredOrders: 0,
+                        totalSpent: selectedCustomer.totalSpent || 0,
+                      };
+                      setCustomerToDelete(found);
+                    }}
+                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Supprimer</span>
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => setSelectedCustomer(null)}
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition"
@@ -615,6 +747,189 @@ export const CrmPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Customer Modal */}
+      {editingCustomer && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">Modifier le Client</h3>
+              </div>
+              <button
+                onClick={() => setEditingCustomer(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateCustomer} className="p-5 space-y-4">
+              {editFormError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{editFormError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nom complet du client <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingCustomer.name}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Téléphone (Algérie) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={editingCustomer.phone}
+                    onChange={(e) => setEditingCustomer({ ...editingCustomer, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email (optionnel)</label>
+                  <input
+                    type="email"
+                    value={editingCustomer.email}
+                    onChange={(e) => setEditingCustomer({ ...editingCustomer, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Wilaya (1-58) <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={editingCustomer.wilaya}
+                    onChange={(e) => setEditingCustomer({ ...editingCustomer, wilaya: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {ALGERIA_WILAYAS.map((w) => (
+                      <option key={w.code} value={w.name}>
+                        {w.code} - {w.name} ({w.arName})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Commune</label>
+                  <input
+                    type="text"
+                    value={editingCustomer.commune}
+                    onChange={(e) => setEditingCustomer({ ...editingCustomer, commune: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Adresse complète</label>
+                <input
+                  type="text"
+                  value={editingCustomer.address}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, address: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Remarques & Notes</label>
+                <textarea
+                  rows={2}
+                  value={editingCustomer.notes}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingCustomer(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEditingSubmitting}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
+                >
+                  {isEditingSubmitting ? 'Mise à jour...' : 'Mettre à jour'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Customer Confirmation Modal */}
+      {customerToDelete && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-slate-900">
+                Supprimer le client {customerToDelete.name} ?
+              </h3>
+              <p className="text-sm text-slate-500 mt-2">
+                Téléphone : <strong className="text-slate-700">{customerToDelete.phone}</strong>
+                <br />
+                Commandes enregistrées : <strong className="text-slate-700">{customerToDelete.totalOrders}</strong>
+              </p>
+              {customerToDelete.totalOrders > 0 ? (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 text-left mt-4">
+                  <strong>Action bloquée :</strong> Ce client possède {customerToDelete.totalOrders} commande(s) liée(s). Vous devez d'abord supprimer ses commandes avant de pouvoir supprimer sa fiche.
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 text-left mt-4">
+                  <strong>Attention :</strong> Cette action supprimera définitivement ce client du CRM.
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setCustomerToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                Annuler
+              </button>
+              {customerToDelete.totalOrders === 0 && (
+                <button
+                  type="button"
+                  onClick={handleDeleteCustomer}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? 'Suppression...' : 'Supprimer définitivement'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

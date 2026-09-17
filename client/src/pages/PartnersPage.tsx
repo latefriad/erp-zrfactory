@@ -23,6 +23,7 @@ import {
   Calendar,
   PieChart,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import { AccountingPeriodsPage } from './AccountingPeriodsPage';
 
@@ -75,8 +76,112 @@ export const PartnersPage: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  // New Partner Modal State
+  const [isNewPartnerModalOpen, setIsNewPartnerModalOpen] = useState<boolean>(false);
+  const [newPartner, setNewPartner] = useState({
+    name: '',
+    ownershipPercentage: 0,
+    initialCapital: 0,
+    phone: '',
+    email: '',
+    notes: '',
+  });
+
+  // New Cash Account Modal State
+  const [isNewAccountModalOpen, setIsNewAccountModalOpen] = useState<boolean>(false);
+  const [newAccount, setNewAccount] = useState<{
+    name: string;
+    type: 'CASH' | 'BANK' | 'CCP' | 'BARIDIMOB';
+    balance: number;
+    isDefault: boolean;
+  }>({
+    name: '',
+    type: 'CASH',
+    balance: 0,
+    isDefault: false,
+  });
+
+  // Deletion States
+  const [partnerToDelete, setPartnerToDelete] = useState<Partner | null>(null);
+  const [accountToDelete, setAccountToDelete] = useState<CashAccount | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
   const canAccessFinance = user?.role === 'ADMIN' || user?.role === 'PARTNER';
   const isAdmin = user?.role === 'ADMIN';
+
+  const handleCreatePartner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!newPartner.name.trim()) {
+      setFormError('Le nom de l\'associé est obligatoire');
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      await fetchApi('/partners', {
+        method: 'POST',
+        body: JSON.stringify(newPartner),
+      });
+      setIsNewPartnerModalOpen(false);
+      setNewPartner({ name: '', ownershipPercentage: 0, initialCapital: 0, phone: '', email: '', notes: '' });
+      await loadData();
+    } catch (err: any) {
+      setFormError(err.message || 'Erreur lors de la création de l\'associé');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeletePartner = async () => {
+    if (!partnerToDelete) return;
+    try {
+      setIsDeleting(true);
+      await fetchApi(`/partners/${partnerToDelete.id}`, { method: 'DELETE' });
+      setPartnerToDelete(null);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de la suppression de l\'associé');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!newAccount.name.trim()) {
+      setFormError('Le nom du compte est obligatoire');
+      return;
+    }
+    try {
+      setIsSubmitting(true);
+      await fetchApi('/cash/accounts', {
+        method: 'POST',
+        body: JSON.stringify(newAccount),
+      });
+      setIsNewAccountModalOpen(false);
+      setNewAccount({ name: '', type: 'CASH', balance: 0, isDefault: false });
+      await loadData();
+    } catch (err: any) {
+      setFormError(err.message || 'Erreur lors de la création du compte');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!accountToDelete) return;
+    try {
+      setIsDeleting(true);
+      await fetchApi(`/cash/accounts/${accountToDelete.id}`, { method: 'DELETE' });
+      setAccountToDelete(null);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de la suppression du compte');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const loadData = async () => {
     if (!canAccessFinance) return;
@@ -402,13 +507,25 @@ export const PartnersPage: React.FC = () => {
 
         <div className="flex flex-wrap items-center gap-2">
           {isAdmin && (
-            <button
-              onClick={openSplitModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
-            >
-              <PieChart className="w-4 h-4 text-indigo-400" />
-              Modifier Répartition
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  setFormError(null);
+                  setIsNewPartnerModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Nouvel Associé
+              </button>
+              <button
+                onClick={openSplitModal}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+              >
+                <PieChart className="w-4 h-4 text-indigo-400" />
+                Modifier Répartition
+              </button>
+            </>
           )}
           <button
             onClick={() => {
@@ -507,9 +624,20 @@ export const PartnersPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg">
-                    {partner.ownershipPercentage}% Capital
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg">
+                      {partner.ownershipPercentage}% Capital
+                    </span>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setPartnerToDelete(partner)}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                        title="Supprimer cet associé"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Financial Summary */}
@@ -590,8 +718,22 @@ export const PartnersPage: React.FC = () => {
               Comptes de Trésorerie & Caisses
             </h2>
           </div>
-          <div className="text-xs text-slate-500">
-            Liquidité Totale : <strong className="text-slate-900 font-mono">{formatCurrency(totalCashBalance, language)}</strong>
+          <div className="flex items-center gap-3">
+            <div className="text-xs text-slate-500">
+              Liquidité Totale : <strong className="text-slate-900 font-mono">{formatCurrency(totalCashBalance, language)}</strong>
+            </div>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setFormError(null);
+                  setIsNewAccountModalOpen(true);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Nouveau Compte
+              </button>
+            )}
           </div>
         </div>
 
@@ -621,11 +763,22 @@ export const PartnersPage: React.FC = () => {
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${getBg()}`}>
                       {getIcon()}
                     </div>
-                    {account.isDefault && (
-                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                        Caisse Principale
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {account.isDefault && (
+                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                          Caisse Principale
+                        </span>
+                      )}
+                      {isAdmin && (
+                        <button
+                          onClick={() => setAccountToDelete(account)}
+                          className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Supprimer ce compte"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <h3 className="font-bold text-slate-900 text-sm">{account.name}</h3>
@@ -1401,6 +1554,326 @@ export const PartnersPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Partner Modal */}
+      {isNewPartnerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-900">Nouvel Associé</h3>
+              </div>
+              <button
+                onClick={() => setIsNewPartnerModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreatePartner} className="space-y-4 pt-4">
+              {formError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nom de l'associé <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Riad Latef"
+                  value={newPartner.name}
+                  onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Quote-part (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={newPartner.ownershipPercentage}
+                    onChange={(e) => setNewPartner({ ...newPartner, ownershipPercentage: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Capital Initial (DA)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={newPartner.initialCapital}
+                    onChange={(e) => setNewPartner({ ...newPartner, initialCapital: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Téléphone</label>
+                  <input
+                    type="tel"
+                    placeholder="0550123456"
+                    value={newPartner.phone}
+                    onChange={(e) => setNewPartner({ ...newPartner, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    placeholder="associe@zr.dz"
+                    value={newPartner.email}
+                    onChange={(e) => setNewPartner({ ...newPartner, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Remarques & Notes</label>
+                <textarea
+                  rows={2}
+                  placeholder="Notes sur les statuts, conditions particulières..."
+                  value={newPartner.notes}
+                  onChange={(e) => setNewPartner({ ...newPartner, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsNewPartnerModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Création...' : 'Créer l\'Associé'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Cash Account Modal */}
+      {isNewAccountModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-bold text-slate-900">Nouveau Compte de Trésorerie</h3>
+              </div>
+              <button
+                onClick={() => setIsNewAccountModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAccount} className="space-y-4 pt-4">
+              {formError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nom du compte / caisse <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Caisse Atelier, Compte CCP ZR, BaridiMob"
+                  value={newAccount.name}
+                  onChange={(e) => setNewAccount({ ...newAccount, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Type de compte</label>
+                  <select
+                    value={newAccount.type}
+                    onChange={(e) => setNewAccount({ ...newAccount, type: e.target.value as any })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="CASH">CASH (Espèces)</option>
+                    <option value="CCP">CCP (Poste Algérie)</option>
+                    <option value="BARIDIMOB">BARIDIMOB (Numérique)</option>
+                    <option value="BANK">BANK (Bancaire)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Solde Initial (DA)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={newAccount.balance}
+                    onChange={(e) => setNewAccount({ ...newAccount, balance: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="isDefaultAccount"
+                  checked={newAccount.isDefault}
+                  onChange={(e) => setNewAccount({ ...newAccount, isDefault: e.target.checked })}
+                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <label htmlFor="isDefaultAccount" className="text-xs text-slate-700">
+                  Définir comme caisse principale par défaut
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsNewAccountModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Création...' : 'Créer le Compte'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Partner Confirmation Modal */}
+      {partnerToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-slate-900">
+                Supprimer l'associé {partnerToDelete.name} ?
+              </h3>
+              <p className="text-xs text-slate-500 mt-2">
+                Quote-part : <strong className="text-slate-700">{partnerToDelete.ownershipPercentage}%</strong>
+                <br />
+                Solde actuel : <strong className="text-slate-700">{formatCurrency(partnerToDelete.currentBalance, language)}</strong>
+              </p>
+              {(partnerToDelete.totalContributions > 0 || partnerToDelete.totalWithdrawals > 0) ? (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 text-left mt-4">
+                  <strong>Action bloquée :</strong> Cet associé possède des transactions de capital ou retraits enregistrées dans le grand livre. La suppression est bloquée pour préserver la comptabilité.
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 text-left mt-4">
+                  <strong>Attention :</strong> Cette action supprimera définitivement cet associé du registre statutaire.
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setPartnerToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                Annuler
+              </button>
+              {(partnerToDelete.totalContributions === 0 && partnerToDelete.totalWithdrawals === 0) && (
+                <button
+                  type="button"
+                  onClick={handleDeletePartner}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? 'Suppression...' : 'Supprimer définitivement'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Cash Account Confirmation Modal */}
+      {accountToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-slate-900">
+                Supprimer le compte {accountToDelete.name} ?
+              </h3>
+              <p className="text-xs text-slate-500 mt-2">
+                Type : <strong className="text-slate-700">{accountToDelete.type}</strong>
+                <br />
+                Solde : <strong className="text-slate-700">{formatCurrency(accountToDelete.balance, language)}</strong>
+              </p>
+              {accountToDelete.balance > 0 ? (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 text-left mt-4">
+                  <strong>Action bloquée :</strong> Ce compte possède un solde de {formatCurrency(accountToDelete.balance, language)}. Veuillez transférer ou vider les fonds vers un autre compte avant de pouvoir le supprimer.
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 text-left mt-4">
+                  <strong>Attention :</strong> Cette action supprimera définitivement ce compte de trésorerie.
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setAccountToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                Annuler
+              </button>
+              {accountToDelete.balance === 0 && (
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? 'Suppression...' : 'Supprimer définitivement'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

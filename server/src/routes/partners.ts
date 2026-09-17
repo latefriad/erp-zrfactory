@@ -141,4 +141,39 @@ router.put('/:id', requireRole(UserRole.ADMIN), (req: Request, res: Response, ne
   }
 });
 
+// Create new partner (ADMIN only)
+router.post('/', requireRole(UserRole.ADMIN), (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const partner = partnerService.createPartner(
+      req.body,
+      req.user?.id,
+      req.user?.name
+    );
+    res.status(201).json({
+      success: true,
+      message: 'Nouvel associé créé avec succès',
+      data: { partner },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete partner (ADMIN only)
+router.delete('/:id', requireRole(UserRole.ADMIN), (req: Request, res: Response, next: NextFunction) => {
+  try {
+    partnerService.deletePartner(
+      req.params.id,
+      req.user?.id,
+      req.user?.name
+    );
+    res.json({
+      success: true,
+      message: 'Associé supprimé avec succès',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { getDatabase } from '../db/connection';
-import { NotFoundError, ValidationError, FinancialRuleError } from '../utils/errors';
+import { NotFoundError, ValidationError, FinancialRuleError, ConflictError } from '../utils/errors';
 import { CashAccount, CashTransaction, CashTransactionType } from '@zr-erp/shared';
 
 export interface CreateCashAccountInput {
@@ -329,6 +329,34 @@ export class CashService {
       referenceId: t.reference_id,
       createdAt: t.created_at,
     }));
+  }
+
+  public deleteAccount(id: string, actorId?: string, actorName?: string): void {
+    const existing = this.getAccountById(id);
+
+    if (existing.balance > 0) {
+      throw new FinancialRuleError(
+        `Impossible de supprimer le compte "${existing.name}" car son solde est non nul (${existing.balance} DA). Veuillez transférer les fonds au préalable.`
+      );
+    }
+
+    const txCount = this.db.prepare('SELECT COUNT(*) as count FROM cash_transactions WHERE cash_account_id = ?').get(id) as { count: number };
+    if (txCount && txCount.count > 0) {
+      throw new ConflictError(
+        `Impossible de supprimer le compte "${existing.name}" car ${txCount.count} transaction(s) d'historique y sont attachées.`
+      );
+    }
+
+    this.db.prepare('DELETE FROM cash_accounts WHERE id = ?').run(id);
+
+    this.logAudit({
+      userId: actorId || null,
+      userName: actorName || null,
+      action: 'DELETE',
+      entityType: 'CASH_ACCOUNT',
+      entityId: id,
+      oldValue: JSON.stringify(existing),
+    });
   }
 
   private logAudit(entry: {

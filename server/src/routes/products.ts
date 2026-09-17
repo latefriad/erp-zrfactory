@@ -147,4 +147,38 @@ router.patch(
   }
 );
 
+// Delete product (ADMIN, PARTNER)
+router.delete(
+  '/:id',
+  requireRole(UserRole.ADMIN, UserRole.PARTNER),
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      productService.deleteProduct(req.params.id);
+      res.json({
+        success: true,
+        message: 'Produit et ses variantes supprimés avec succès',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Delete variant (ADMIN, PARTNER, EMPLOYEE)
+router.delete(
+  '/:id/variants/:variantId',
+  requireRole(UserRole.ADMIN, UserRole.PARTNER, UserRole.EMPLOYEE),
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      productService.deleteVariant(req.params.variantId);
+      res.json({
+        success: true,
+        message: 'Déclinaison supprimée avec succès',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 export default router;

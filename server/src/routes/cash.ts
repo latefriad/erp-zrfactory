@@ -57,6 +57,23 @@ router.post(
   }
 );
 
+// Delete cash account (ADMIN only)
+router.delete(
+  '/accounts/:id',
+  requireRole(UserRole.ADMIN),
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      cashService.deleteAccount(req.params.id, req.user?.id, req.user?.name);
+      res.json({
+        success: true,
+        message: 'Compte de trésorerie supprimé avec succès',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // Inter-account fund transfer
 router.post(
   '/transfer',

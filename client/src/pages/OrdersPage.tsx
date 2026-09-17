@@ -103,6 +103,27 @@ export const OrdersPage: React.FC = () => {
   const [orderFormError, setOrderFormError] = useState<string | null>(null);
 
   const canManage = user?.role === 'ADMIN' || user?.role === 'PARTNER' || user?.role === 'EMPLOYEE';
+  const canDelete = user?.role === 'ADMIN' || user?.role === 'PARTNER';
+
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  const handleDeleteOrder = async () => {
+    if (!orderToDelete) return;
+    try {
+      setIsDeleting(true);
+      await fetchApi(`/orders/${orderToDelete.id}`, { method: 'DELETE' });
+      setOrderToDelete(null);
+      if (activeOrder?.id === orderToDelete.id) {
+        setActiveOrder(null);
+      }
+      loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de la suppression de la commande');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -612,13 +633,27 @@ export const OrdersPage: React.FC = () => {
                       </td>
 
                       <td className="px-5 py-4 text-center">
-                        <button
-                          onClick={() => openOrderDetail(ord.id)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Voir la commande"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => openOrderDetail(ord.id)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Voir la commande"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOrderToDelete(ord);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                              title="Supprimer la commande"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -807,7 +842,16 @@ export const OrdersPage: React.FC = () => {
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              {canDelete ? (
+                <button
+                  onClick={() => setOrderToDelete(activeOrder)}
+                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Supprimer la commande</span>
+                </button>
+              ) : <div />}
               <button
                 onClick={() => setActiveOrder(null)}
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition"
@@ -1082,6 +1126,48 @@ export const OrdersPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {orderToDelete && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-slate-900">
+                Supprimer la commande {orderToDelete.orderNumber} ?
+              </h3>
+              <p className="text-sm text-slate-500 mt-2">
+                Montant total : <strong className="text-slate-700">{formatCurrency(orderToDelete.total, language)}</strong>
+                <br />
+                Client : <strong className="text-slate-700">{orderToDelete.customer?.name}</strong>
+              </p>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 text-left mt-4">
+                <strong>Attention :</strong> Cette action supprimera définitivement la commande et restituera les stocks des articles réservés.
+              </div>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setOrderToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteOrder}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+              >
+                {isDeleting ? 'Suppression...' : 'Supprimer définitivement'}
+              </button>
+            </div>
           </div>
         </div>
       )}

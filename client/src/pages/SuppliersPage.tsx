@@ -15,7 +15,9 @@ import {
   AlertCircle,
   Building2,
   FileText,
-  Boxes
+  Boxes,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 
 export const SuppliersPage: React.FC = () => {
@@ -42,6 +44,83 @@ export const SuppliersPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const canManage = user?.role === 'ADMIN' || user?.role === 'PARTNER' || user?.role === 'EMPLOYEE';
+  const canDelete = user?.role === 'ADMIN' || user?.role === 'PARTNER';
+
+  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  // Edit Supplier State
+  const [editingSupplier, setEditingSupplier] = useState<{
+    id: string;
+    name: string;
+    phone: string;
+    email: string;
+    address: string;
+    notes: string;
+  } | null>(null);
+  const [editFormError, setEditFormError] = useState<string | null>(null);
+  const [isEditingSubmitting, setIsEditingSubmitting] = useState<boolean>(false);
+
+  const handleDeleteSupplier = async () => {
+    if (!supplierToDelete) return;
+    try {
+      setIsDeleting(true);
+      await fetchApi(`/suppliers/${supplierToDelete.id}`, { method: 'DELETE' });
+      setSupplierToDelete(null);
+      if (selectedSupplier?.id === supplierToDelete.id) {
+        setSelectedSupplier(null);
+      }
+      loadSuppliers();
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de la suppression du fournisseur');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleOpenEdit = (s: Supplier | (Supplier & { recentExpenses: any[] })) => {
+    setEditingSupplier({
+      id: s.id,
+      name: s.name,
+      phone: s.phone,
+      email: s.email || '',
+      address: s.address || '',
+      notes: s.notes || '',
+    });
+    setEditFormError(null);
+  };
+
+  const handleUpdateSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSupplier) return;
+    setEditFormError(null);
+
+    if (!editingSupplier.name.trim()) {
+      setEditFormError('Le nom du fournisseur est obligatoire.');
+      return;
+    }
+    if (!editingSupplier.phone.trim()) {
+      setEditFormError('Le numéro de téléphone est obligatoire.');
+      return;
+    }
+
+    try {
+      setIsEditingSubmitting(true);
+      await fetchApi(`/suppliers/${editingSupplier.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(editingSupplier),
+      });
+      setEditingSupplier(null);
+      loadSuppliers();
+      if (selectedSupplier?.id === editingSupplier.id) {
+        viewSupplierProfile(editingSupplier.id);
+      }
+    } catch (err: any) {
+      setEditFormError(err.message || 'Erreur lors de la modification');
+    } finally {
+      setIsEditingSubmitting(false);
+    }
+  };
 
   const loadSuppliers = async () => {
     try {
@@ -270,13 +349,34 @@ export const SuppliersPage: React.FC = () => {
                     </td>
 
                     <td className="px-5 py-4 text-center">
-                      <button
-                        onClick={() => viewSupplierProfile(s.id)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-lg transition border border-cyan-200"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        <span>Fiche</span>
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => viewSupplierProfile(s.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 rounded-lg transition border border-cyan-200"
+                          title="Fiche fournisseur"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span>Fiche</span>
+                        </button>
+                        {canManage && (
+                          <button
+                            onClick={() => handleOpenEdit(s)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Modifier le fournisseur"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => setSupplierToDelete(s)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Supprimer le fournisseur"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -400,7 +500,36 @@ export const SuppliersPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {canManage && (
+                  <button
+                    onClick={() => handleOpenEdit(selectedSupplier)}
+                    className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Modifier</span>
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    onClick={() => {
+                      const found = suppliers.find((x) => x.id === selectedSupplier.id) || {
+                        ...selectedSupplier,
+                        purchasesCount: selectedSupplier.recentExpenses?.length || 0,
+                        totalPurchased: 0,
+                        amountPaid: 0,
+                        amountOwed: 0,
+                      };
+                      setSupplierToDelete(found);
+                    }}
+                    className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Supprimer</span>
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => setSelectedSupplier(null)}
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition"
@@ -517,6 +646,160 @@ export const SuppliersPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Supplier Modal */}
+      {editingSupplier && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">Modifier le Fournisseur</h3>
+              </div>
+              <button
+                onClick={() => setEditingSupplier(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateSupplier} className="p-5 space-y-4">
+              {editFormError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{editFormError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nom de l'entreprise ou contact <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editingSupplier.name}
+                  onChange={(e) => setEditingSupplier({ ...editingSupplier, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Téléphone <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={editingSupplier.phone}
+                    onChange={(e) => setEditingSupplier({ ...editingSupplier, phone: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editingSupplier.email}
+                    onChange={(e) => setEditingSupplier({ ...editingSupplier, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Adresse ou Zone Industrielle</label>
+                <input
+                  type="text"
+                  value={editingSupplier.address}
+                  onChange={(e) => setEditingSupplier({ ...editingSupplier, address: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Types de fournitures / Notes</label>
+                <textarea
+                  rows={2}
+                  value={editingSupplier.notes}
+                  onChange={(e) => setEditingSupplier({ ...editingSupplier, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingSupplier(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEditingSubmitting}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition disabled:opacity-50"
+                >
+                  {isEditingSubmitting ? 'Mise à jour...' : 'Mettre à jour'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Supplier Confirmation Modal */}
+      {supplierToDelete && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-slate-900">
+                Supprimer le fournisseur {supplierToDelete.name} ?
+              </h3>
+              <p className="text-sm text-slate-500 mt-2">
+                Téléphone : <strong className="text-slate-700">{supplierToDelete.phone}</strong>
+                <br />
+                Commandes d'approvisionnement : <strong className="text-slate-700">{supplierToDelete.purchasesCount}</strong>
+              </p>
+              {supplierToDelete.purchasesCount > 0 ? (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 text-left mt-4">
+                  <strong>Action bloquée :</strong> Ce fournisseur possède {supplierToDelete.purchasesCount} dépense(s)/achat(s) associé(s). Vous devez d'abord supprimer ses dépenses avant de pouvoir supprimer sa fiche fournisseur.
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 text-left mt-4">
+                  <strong>Attention :</strong> Cette action supprimera définitivement ce fournisseur de la base de données.
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setSupplierToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition"
+              >
+                Annuler
+              </button>
+              {supplierToDelete.purchasesCount === 0 && (
+                <button
+                  type="button"
+                  onClick={handleDeleteSupplier}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? 'Suppression...' : 'Supprimer définitivement'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

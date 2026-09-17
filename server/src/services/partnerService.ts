@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { getDatabase } from '../db/connection';
-import { NotFoundError, ValidationError, FinancialRuleError, ForbiddenError } from '../utils/errors';
+import { NotFoundError, ValidationError, FinancialRuleError, ForbiddenError, ConflictError } from '../utils/errors';
 import { Partner, PartnerTransaction, PartnerTransactionType, UserRole } from '@zr-erp/shared';
 import { UserSessionPayload } from './authService';
 
@@ -426,6 +426,89 @@ export class PartnerService {
 
     const updatedRow = this.db.prepare(`SELECT * FROM partners WHERE id = ?`).get(id) as any;
     return this.computePartnerMetrics(updatedRow);
+  }
+
+  public createPartner(
+    data: {
+      name: string;
+      ownershipPercentage?: number;
+      initialCapital?: number;
+      phone?: string;
+      email?: string;
+      notes?: string;
+    },
+    actorId?: string,
+    actorName?: string
+  ): Partner {
+    if (!data.name || data.name.trim().length === 0) {
+      throw new ValidationError('Le nom de l\'associé est obligatoire');
+    }
+
+    const pct = data.ownershipPercentage !== undefined ? Number(data.ownershipPercentage) : 0;
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      throw new ValidationError('La quote-part statutaire doit être comprise entre 0 et 100%');
+    }
+
+    const initialCapital = data.initialCapital !== undefined ? Math.max(0, Number(data.initialCapital)) : 0;
+    const id = `partner-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date().toISOString();
+
+    this.db.prepare(`
+      INSERT INTO partners (id, name, ownership_percentage, initial_capital, phone, email, notes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      data.name.trim(),
+      pct,
+      initialCapital,
+      data.phone?.trim() || null,
+      data.email?.trim() || null,
+      data.notes?.trim() || null,
+      now,
+      now
+    );
+
+    this.logAudit({
+      userId: actorId || null,
+      userName: actorName || null,
+      action: 'CREATE_PARTNER',
+      entityType: 'PARTNER',
+      entityId: id,
+      newValue: JSON.stringify({ name: data.name, ownershipPercentage: pct, initialCapital }),
+    });
+
+    const row = this.db.prepare(`SELECT * FROM partners WHERE id = ?`).get(id) as any;
+    return this.computePartnerMetrics(row);
+  }
+
+  public deletePartner(id: string, actorId?: string, actorName?: string): void {
+    const existing = this.db.prepare(`SELECT * FROM partners WHERE id = ?`).get(id) as any;
+    if (!existing) {
+      throw new NotFoundError(`Associé introuvable (ID: ${id})`);
+    }
+
+    const txCount = this.db.prepare('SELECT COUNT(*) as count FROM partner_transactions WHERE partner_id = ?').get(id) as { count: number };
+    if (txCount && txCount.count > 0) {
+      throw new ConflictError(
+        `Impossible de supprimer l'associé "${existing.name}" car il possède ${txCount.count} transaction(s) de capital ou retrait.`
+      );
+    }
+
+    const transaction = this.db.transaction(() => {
+      this.db.prepare(`UPDATE users SET partner_id = NULL WHERE partner_id = ?`).run(id);
+      this.db.prepare(`DELETE FROM partners WHERE id = ?`).run(id);
+    });
+
+    transaction();
+
+    this.logAudit({
+      userId: actorId || null,
+      userName: actorName || null,
+      action: 'DELETE_PARTNER',
+      entityType: 'PARTNER',
+      entityId: id,
+      oldValue: JSON.stringify({ name: existing.name }),
+    });
   }
 
   private computePartnerMetrics(row: any): Partner {
