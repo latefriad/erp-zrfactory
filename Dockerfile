@@ -18,7 +18,8 @@ COPY client/package*.json ./client/
 # Install dependencies across all workspaces
 RUN npm install
 
-# Copy source files
+# Copy source files & root configurations
+COPY tsconfig.base.json ./
 COPY shared/ ./shared/
 COPY server/ ./server/
 COPY client/ ./client/
