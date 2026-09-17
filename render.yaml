@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: erp-zrfactory
+    env: docker
+    dockerfilePath: ./Dockerfile
+    region: fra
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: "*"
