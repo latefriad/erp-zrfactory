@@ -4,9 +4,7 @@ const DEFAULT_PROD_API = 'https://erp-zrfactory.onrender.com';
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
-  : (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-      ? DEFAULT_PROD_API
-      : '');
+  : DEFAULT_PROD_API;
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -14,21 +12,39 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+async function fetchWithRetry(url: string, options?: RequestInit, retries = 2, delay = 1500): Promise<Response> {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok) return res;
+      if (i === retries) return res;
+    } catch (err) {
+      if (i === retries) throw err;
+    }
+    await new Promise(r => setTimeout(r, delay));
+  }
+  return fetch(url, options);
+}
+
 export const storeApi = {
   async getProducts(search?: string): Promise<Product[]> {
-    const base = API_BASE || window.location.origin;
-    const url = new URL('/api/products', base);
+    const url = new URL('/api/products', API_BASE);
     url.searchParams.set('isActive', 'true');
     if (search) {
       url.searchParams.set('search', search);
     }
 
-    const res = await fetch(url.toString());
-    if (!res.ok) {
-      throw new Error(`Erreur de chargement des produits (${res.status})`);
+    try {
+      const res = await fetchWithRetry(url.toString(), undefined, 2, 1500);
+      if (!res.ok) {
+        throw new Error(`Erreur de chargement des produits (${res.status})`);
+      }
+      const json = await res.json();
+      return json.data?.products || [];
+    } catch (err) {
+      console.error('[ZR Store] Failed to fetch products:', err);
+      throw err;
     }
-    const json = await res.json();
-    return json.data?.products || [];
   },
 
   async getProductById(id: string): Promise<Product> {

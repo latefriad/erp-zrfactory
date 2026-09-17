@@ -20,6 +20,7 @@ const CART_STORAGE_KEY = 'zr_store_cart_v1';
 export const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Cart state persisted to localStorage
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -49,20 +50,23 @@ export const App: React.FC = () => {
     }
   }, [cart]);
 
+  const fetchProducts = async () => {
+    setLoadingProducts(true);
+    setLoadError(null);
+    try {
+      const list = await storeApi.getProducts();
+      setProducts(list);
+    } catch (err: any) {
+      console.error('Failed to load products', err);
+      setLoadError(err?.message || 'فشل في الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
   // Load products on mount
   useEffect(() => {
-    async function loadProducts() {
-      setLoadingProducts(true);
-      try {
-        const list = await storeApi.getProducts();
-        setProducts(list);
-      } catch (err) {
-        console.error('Failed to load products', err);
-      } finally {
-        setLoadingProducts(false);
-      }
-    }
-    loadProducts();
+    fetchProducts();
   }, []);
 
   const totalCartCount = cart.reduce((sum, itm) => sum + itm.quantity, 0);
@@ -151,6 +155,8 @@ export const App: React.FC = () => {
         <ProductCatalog
           products={products}
           loading={loadingProducts}
+          error={loadError}
+          onRetry={fetchProducts}
           onSelectProduct={product => setSelectedProduct(product)}
           onQuickAdd={product => setSelectedProduct(product)}
         />

@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Product } from '../types/store';
-import { Search, ShoppingBag, ArrowLeft, Tag, Layers, Check, Sparkles } from 'lucide-react';
+import { Search, ShoppingBag, ArrowLeft, Tag, Layers, Check, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface ProductCatalogProps {
   products: Product[];
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   onSelectProduct: (product: Product) => void;
   onQuickAdd: (product: Product) => void;
 }
@@ -12,19 +14,30 @@ interface ProductCatalogProps {
 export const ProductCatalog: React.FC<ProductCatalogProps> = ({
   products,
   loading,
+  error,
+  onRetry,
   onSelectProduct,
   onQuickAdd,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
+  const normalizeArabic = (str: string) => {
+    return str
+      .toLowerCase()
+      .replace(/[إأآا]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ى/g, 'ي')
+      .trim();
+  };
+
   const filteredProducts = useMemo(() => {
     if (!searchTerm.trim()) return products;
-    const q = searchTerm.toLowerCase();
+    const q = normalizeArabic(searchTerm);
     return products.filter(
       p =>
-        p.name.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q) ||
-        (p.description && p.description.toLowerCase().includes(q))
+        normalizeArabic(p.name).includes(q) ||
+        p.sku.toLowerCase().includes(searchTerm.toLowerCase().trim()) ||
+        (p.description && normalizeArabic(p.description).includes(q))
     );
   }, [products, searchTerm]);
 
@@ -84,26 +97,58 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
           </div>
         )}
 
-        {/* Empty State */}
-        {!loading && filteredProducts.length === 0 && (
+        {/* Error State */}
+        {!loading && error && (
+          <div className="bg-white rounded-2xl border border-rose-200 p-10 text-center max-w-lg mx-auto shadow-sm">
+            <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center mx-auto mb-4 text-rose-500">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">تعذر الاتصال بقاعدة البيانات</h3>
+            <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+              قد يستغرق الخادم بضع ثوانٍ للاستيقاظ لأول مرة. يرجى الضغط على زر إعادة المحاولة.
+            </p>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>إعادة المحاولة الآن</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Empty State (when no error) */}
+        {!loading && !error && filteredProducts.length === 0 && (
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center max-w-lg mx-auto shadow-sm">
             <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-400">
               <ShoppingBag className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 mb-1">لا توجد منتجات مطابقة</h3>
-            <p className="text-slate-500 text-sm mb-4">
+            <h3 className="text-lg font-bold text-slate-800 mb-1">
+              {searchTerm ? 'لا توجد منتجات مطابقة للبحث' : 'الكتالوج فارغ حالياً'}
+            </h3>
+            <p className="text-slate-500 text-sm mb-6 leading-relaxed">
               {searchTerm
-                ? `لم نعثر على أي منتج يطابق البحث "${searchTerm}". جرب البحث بكلمات أخرى.`
-                : 'يتم حالياً تحديث الكتالوج من لوحة تحكم ERP، يرجى المحاولة لاحقاً.'}
+                ? `لم نعثر على أي منتج يطابق البحث "${searchTerm}". جرب البحث باسم المنتج أو الكود.`
+                : 'يتم حالياً مزامنة المنتجات من لوحة تحكم ERP، اضغط لتحديث القائمة.'}
             </p>
-            {searchTerm && (
+            {searchTerm ? (
               <button
                 onClick={() => setSearchTerm('')}
-                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 transition-colors"
+                className="px-5 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 transition-colors shadow-sm"
               >
                 عرض جميع المنتجات
               </button>
-            )}
+            ) : onRetry ? (
+              <button
+                onClick={onRetry}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 transition-colors shadow-sm"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>تحديث قائمة المنتجات</span>
+              </button>
+            ) : null}
           </div>
         )}
 
