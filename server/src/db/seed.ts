@@ -257,6 +257,24 @@ export function seedDatabase(db: Database.Database): void {
           { id: 'var-7', name: 'Noir / Taille Unique', sku: 'CAP-CUSTOM-003-BLK-U', stock: 35 },
         ],
       },
+      {
+        id: 'prod-tshort-uniform',
+        name: 'tshort uniform',
+        sku: '140',
+        description: 'T-Shirt uniform haute qualité 100% coton pour entreprises et équipes avec impression DTF personnalisée',
+        sellingPrice: 1900,
+        components: [
+          { id: 'comp-10', name: 'T-Shirt Vierge', type: 'BASE_ITEM', cost: 700 },
+          { id: 'comp-11', name: 'Impression DTF HD', type: 'PRINTING', cost: 400 },
+          { id: 'comp-12', name: 'Packaging & Étiquette', type: 'PACKAGING', cost: 50 },
+        ],
+        variants: [
+          { id: 'var-8', name: 'Noir / S', sku: '140-BLK-S', stock: 25 },
+          { id: 'var-9', name: 'Noir / M', sku: '140-BLK-M', stock: 50 },
+          { id: 'var-10', name: 'Noir / L', sku: '140-BLK-L', stock: 40 },
+          { id: 'var-11', name: 'Noir / XL', sku: '140-BLK-XL', stock: 20 },
+        ],
+      },
     ];
 
     const insertProduct = db.prepare(`
