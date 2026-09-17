@@ -1,13 +1,18 @@
-FROM node:20-bookworm-slim AS builder
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-# Install native build tools for better-sqlite3
+# Install native build tools for better-sqlite3 and sqlite3 runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \
+    sqlite3 \
     && rm -rf /var/lib/apt/lists/*
+
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV NODE_OPTIONS="--max-old-space-size=450"
 
 # Copy package manifests
 COPY package*.json ./
@@ -15,42 +20,22 @@ COPY shared/package*.json ./shared/
 COPY server/package*.json ./server/
 COPY client/package*.json ./client/
 
-# Install dependencies across all workspaces
+# Install all dependencies across workspaces
 RUN npm install
 
-# Copy source files & root configurations
+# Copy configuration and source files
 COPY tsconfig.base.json ./
 COPY shared/ ./shared/
 COPY server/ ./server/
 COPY client/ ./client/
 
-# Build all workspaces
+# Build all workspaces (shared, server, client)
 RUN npm run build
 
-# Stage 2: Production Runner
-FROM node:20-bookworm-slim AS runner
-
-WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Install runtime dependencies for SQLite
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    sqlite3 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy built assets and installed packages
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/shared ./shared
-COPY --from=builder /app/server ./server
-COPY --from=builder /app/client/dist ./client/dist
-
-# Create persistent data directories
+# Ensure database directory exists
 RUN mkdir -p /app/server/data /app/server/data/backups
 
-# Expose API and frontend single-port
 EXPOSE 3000
 
-# Run migrations and start server
-CMD ["sh", "-c", "cd /app/server && node dist/db/cli.js migrate && cd /app && npm start"]
+# Start server directly (automatically applies migrations and seeds on startup)
+CMD ["node", "server/dist/index.js"]
