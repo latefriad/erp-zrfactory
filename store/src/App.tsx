@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Product } from '@zr-erp/shared';
-import { CartItem } from './types/store';
+import { Product, CartItem } from './types/store';
 import { storeApi } from './services/storeApi';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Product, ProductVariant } from '@zr-erp/shared';
 import { X, ShoppingBag, Check, Layers, AlertCircle, Plus, Minus, Tag } from 'lucide-react';
-import { CartItem } from '../types/store';
+import { CartItem, Product, ProductVariant } from '../types/store';
 
 interface ProductDetailModalProps {
   product: Product | null;

@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { ALGERIA_WILAYAS } from '@zr-erp/shared';
 import { X, Truck, ShieldCheck, CheckCircle2, AlertCircle, ShoppingBag, Loader2 } from 'lucide-react';
-import { CartItem, StoreOrderPayload } from '../types/store';
+import { ALGERIA_WILAYAS, CartItem, StoreOrderPayload } from '../types/store';
 import { storeApi } from '../services/storeApi';
 
 interface CheckoutModalProps {

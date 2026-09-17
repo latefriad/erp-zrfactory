@@ -17,8 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["vite/client"],
     "paths": {
-      "@/*": ["./src/*"],
-      "@zr-erp/shared": ["../shared/src"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],

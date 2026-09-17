@@ -1,5 +1,4 @@
-import { Product } from '@zr-erp/shared';
-import { StoreOrderPayload, OrderTrackingInfo } from '../types/store';
+import { Product, StoreOrderPayload, OrderTrackingInfo } from '../types/store';
 
 const API_BASE = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : '';
 

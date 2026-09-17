@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Product } from '@zr-erp/shared';
+import { Product } from '../types/store';
 import { Search, ShoppingBag, ArrowLeft, Tag, Layers, Check, Sparkles } from 'lucide-react';
 
 interface ProductCatalogProps {
