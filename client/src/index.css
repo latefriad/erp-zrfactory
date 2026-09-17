@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    margin: 0;
+    min-height: 100vh;
+  }
+}
+
+/* RTL Specific rules */
+[dir="rtl"] {
+  font-family: 'Noto Sans Arabic', system-ui, sans-serif;
+}

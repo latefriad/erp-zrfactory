@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "paths": {
+      "@zr-erp/shared": ["../shared/dist"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["tests/**/*", "dist", "node_modules"]
+}

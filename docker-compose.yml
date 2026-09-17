@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  zr-factory-erp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zr-factory-erp
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=change-this-secret-in-production-dz-zr-factory-2026
+      - DATABASE_PATH=/app/server/data/zr_factory.sqlite
+      - BACKUP_PATH=/app/server/data/backups
+    volumes:
+      - zr_factory_data:/app/server/data
+
+volumes:
+  zr_factory_data:
+    driver: local
