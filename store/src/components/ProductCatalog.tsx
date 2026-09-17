@@ -159,6 +159,8 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
               const hasVariants = product.variants && product.variants.length > 0;
               const minPrice = product.sellingPrice;
               const hasDescription = product.description && product.description.trim().length > 0;
+              const coverImage = product.imageUrl || (product.images && product.images.length > 0 ? product.images[0] : null);
+              const hasDiscount = product.compareAtPrice && product.compareAtPrice > minPrice;
 
               return (
                 <div
@@ -168,24 +170,39 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
                   {/* Product Visual Box */}
                   <div
                     onClick={() => onSelectProduct(product)}
-                    className="cursor-pointer relative aspect-[4/3] bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-6 overflow-hidden"
+                    className="cursor-pointer relative aspect-[4/3] bg-slate-900 flex items-center justify-center overflow-hidden"
                   >
-                    <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 group-hover:scale-110 transition-transform duration-300">
-                      <ShoppingBag className="w-10 h-10 stroke-[1.5]" />
-                    </div>
+                    {coverImage ? (
+                      <img
+                        src={coverImage}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 group-hover:scale-110 transition-transform duration-300">
+                        <ShoppingBag className="w-10 h-10 stroke-[1.5]" />
+                      </div>
+                    )}
 
-                    {/* Badge */}
-                    <div className="absolute top-3 right-3 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
-                      طباعة DTF
-                    </div>
+                    {/* Discount Badge or DTF Badge */}
+                    {hasDiscount ? (
+                      <div className="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow">
+                        تخفيض -{Math.round(((product.compareAtPrice! - minPrice) / product.compareAtPrice!) * 100)}%
+                      </div>
+                    ) : (
+                      <div className="absolute top-3 right-3 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+                        طباعة DTF
+                      </div>
+                    )}
 
                     {/* Stock status indicator */}
-                    <div className="absolute top-3 left-3 flex items-center gap-1 bg-emerald-950/80 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-800/60">
+                    <div className="absolute top-3 left-3 flex items-center gap-1 bg-slate-950/80 backdrop-blur-sm text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-800/60 shadow">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                       <span>متوفر للطلب</span>
                     </div>
 
-                    <div className="absolute bottom-2 left-2 text-[10px] font-mono text-slate-400 bg-slate-950/70 px-1.5 py-0.5 rounded">
+                    <div className="absolute bottom-2 left-2 text-[10px] font-mono text-slate-300 bg-slate-950/70 px-1.5 py-0.5 rounded">
                       {product.sku}
                     </div>
                   </div>
@@ -230,9 +247,18 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
                     <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
                       <div className="flex flex-col">
                         <span className="text-[11px] text-slate-400">السعر</span>
-                        <span className="font-extrabold text-blue-600 text-lg">
-                          {minPrice.toLocaleString('fr-DZ')} <span className="text-xs font-bold">د.ج</span>
-                        </span>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="font-extrabold text-blue-600 text-lg">
+                            {minPrice.toLocaleString('fr-DZ')}
+                          </span>
+                          <span className="text-xs font-bold text-slate-700">د.ج</span>
+
+                          {hasDiscount && (
+                            <span className="text-xs text-slate-400 line-through">
+                              {product.compareAtPrice!.toLocaleString('fr-DZ')}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <button
@@ -240,7 +266,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
                         className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-blue-600 text-white font-bold text-xs transition-colors flex items-center gap-1.5 active:scale-95 shadow-sm"
                       >
                         <ShoppingBag className="w-3.5 h-3.5" />
-                        <span>{hasVariants ? 'اختر واطلب' : 'أضف للسلة'}</span>
+                        <span>اطلب الآن</span>
                       </button>
                     </div>
                   </div>

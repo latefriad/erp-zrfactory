@@ -13,7 +13,13 @@ import {
   Tag,
   Boxes,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Edit3,
+  Image as ImageIcon,
+  Upload,
+  X,
+  Sparkles,
+  ExternalLink
 } from 'lucide-react';
 
 interface CostComponent {
@@ -36,6 +42,10 @@ interface Product {
   sku: string;
   description?: string;
   sellingPrice: number;
+  compareAtPrice?: number;
+  imageUrl?: string | null;
+  images?: string[];
+  features?: string[];
   totalCost: number;
   grossProfit: number;
   grossMarginPercentage: number;
@@ -68,6 +78,7 @@ export const ProductsPage: React.FC = () => {
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [showAddComponentModal, setShowAddComponentModal] = useState<string | null>(null);
   const [showAddVariantModal, setShowAddVariantModal] = useState<string | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [variantToDelete, setVariantToDelete] = useState<{ productId: string; variantId: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -78,11 +89,30 @@ export const ProductsPage: React.FC = () => {
     sku: '',
     description: '',
     sellingPrice: 2500,
+    compareAtPrice: 3500,
+    imageUrl: '',
+    images: [] as string[],
+    features: [] as string[],
+    newFeatureText: '',
+    newImageUrlText: '',
     components: [
       { name: 'T-Shirt Vierge', type: CostComponentType.BASE_ITEM, cost: 700 },
       { name: 'Impression DTF HD', type: CostComponentType.PRINTING, cost: 400 },
       { name: 'Packaging & Étiquette', type: CostComponentType.PACKAGING, cost: 50 },
     ],
+  });
+
+  // Edit product form
+  const [editProd, setEditProd] = useState({
+    name: '',
+    description: '',
+    sellingPrice: 2500,
+    compareAtPrice: 3500,
+    imageUrl: '',
+    images: [] as string[],
+    features: [] as string[],
+    newFeatureText: '',
+    newImageUrlText: '',
   });
 
   // New component form
@@ -155,6 +185,40 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>, isEditing: boolean = false) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach(file => {
+      if (file.size > 3 * 1024 * 1024) {
+        setNotice("L'image est trop volumineuse (max 3 Mo). Veuillez en choisir une plus légère.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const result = uploadEvent.target?.result as string;
+        if (result) {
+          if (isEditing) {
+            setEditProd(prev => ({
+              ...prev,
+              images: [...prev.images, result],
+              imageUrl: prev.imageUrl || result
+            }));
+          } else {
+            setNewProd(prev => ({
+              ...prev,
+              images: [...prev.images, result],
+              imageUrl: prev.imageUrl || result
+            }));
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -165,6 +229,10 @@ export const ProductsPage: React.FC = () => {
           sku: newProd.sku,
           description: newProd.description,
           sellingPrice: Number(newProd.sellingPrice),
+          compareAtPrice: Number(newProd.compareAtPrice) || 0,
+          imageUrl: newProd.images.length > 0 ? newProd.images[0] : (newProd.imageUrl || null),
+          images: newProd.images,
+          features: newProd.features,
           costComponents: newProd.components,
         }),
       });
@@ -175,12 +243,57 @@ export const ProductsPage: React.FC = () => {
         sku: '',
         description: '',
         sellingPrice: 2500,
+        compareAtPrice: 3500,
+        imageUrl: '',
+        images: [],
+        features: [],
+        newFeatureText: '',
+        newImageUrlText: '',
         components: [
           { name: 'T-Shirt Vierge', type: CostComponentType.BASE_ITEM, cost: 700 },
           { name: 'Impression DTF HD', type: CostComponentType.PRINTING, cost: 400 },
           { name: 'Packaging & Étiquette', type: CostComponentType.PACKAGING, cost: 50 },
         ],
       });
+      loadData();
+    } catch (err: any) {
+      setNotice(`Erreur: ${err.message}`);
+    }
+  };
+
+  const handleOpenEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setEditProd({
+      name: product.name,
+      description: product.description || '',
+      sellingPrice: product.sellingPrice,
+      compareAtPrice: product.compareAtPrice || Math.round(product.sellingPrice * 1.35),
+      imageUrl: product.imageUrl || '',
+      images: product.images && product.images.length > 0 ? product.images : (product.imageUrl ? [product.imageUrl] : []),
+      features: product.features || [],
+      newFeatureText: '',
+      newImageUrlText: '',
+    });
+  };
+
+  const handleUpdateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    try {
+      await fetchApi(`/products/${editingProduct.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: editProd.name,
+          description: editProd.description || null,
+          sellingPrice: Number(editProd.sellingPrice),
+          compareAtPrice: Number(editProd.compareAtPrice) || 0,
+          imageUrl: editProd.images.length > 0 ? editProd.images[0] : (editProd.imageUrl || null),
+          images: editProd.images,
+          features: editProd.features,
+        }),
+      });
+      setNotice(`Produit ${editProd.name} mis à jour avec succès.`);
+      setEditingProduct(null);
       loadData();
     } catch (err: any) {
       setNotice(`Erreur: ${err.message}`);
@@ -400,17 +513,31 @@ export const ProductsPage: React.FC = () => {
                   className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/60 transition-colors"
                 >
                   <div className="flex items-start gap-3.5">
-                    <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold flex-shrink-0 border border-blue-100">
-                      <Package className="w-6 h-6" />
-                    </div>
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-slate-200 shadow-sm"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold flex-shrink-0 border border-blue-100">
+                        <Package className="w-6 h-6" />
+                      </div>
+                    )}
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-slate-900 text-base">{product.name}</h3>
                         <span className="text-xs font-mono px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">
                           {product.sku}
                         </span>
+                        {product.images && product.images.length > 0 && (
+                          <span className="text-[10px] bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3" />
+                            {product.images.length} photos
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">{product.description || 'Aucune description'}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{product.description || 'Aucune description'}</p>
                     </div>
                   </div>
 
@@ -445,16 +572,38 @@ export const ProductsPage: React.FC = () => {
                     </div>
 
                     {!isViewer && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setProductToDelete(product);
-                        }}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                        title="Supprimer ce produit"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <a
+                          href={`https://erp-zrfactory-store.vercel.app/?product=${product.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                          title="Voir la page produit dans le Store client"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditProduct(product);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Modifier les photos, la description et les tarifs"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProductToDelete(product);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Supprimer ce produit"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
 
                     <div className="p-1 text-slate-400">
@@ -690,48 +839,227 @@ export const ProductsPage: React.FC = () => {
       {/* Modal: Create Product */}
       {showProductModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Nouveau Produit Print-on-Demand</h3>
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-blue-600" />
+                <span>Nouveau Produit Print-on-Demand</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowProductModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
             <form onSubmit={handleCreateProduct} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nom du Produit *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: T-Shirt Oversized ZR"
+                    value={newProd.name}
+                    onChange={(e) => setNewProd({ ...newProd, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Code SKU Unique *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: TSHIRT-OVR-001"
+                    value={newProd.sku}
+                    onChange={(e) => setNewProd({ ...newProd, sku: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Prix de Vente (DZD) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={newProd.sellingPrice}
+                    onChange={(e) => setNewProd({ ...newProd, sellingPrice: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Prix Barré / Ancien Prix (DZD)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Ex: 3500 (pour afficher -30%)"
+                    value={newProd.compareAtPrice}
+                    onChange={(e) => setNewProd({ ...newProd, compareAtPrice: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-600"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Nom du Produit</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: T-Shirt Vintage Boxy"
-                  value={newProd.name}
-                  onChange={(e) => setNewProd({ ...newProd, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Description Détaillée du Produit</label>
+                <textarea
+                  rows={3}
+                  placeholder="Décrivez les matières, la coupe, la qualité d'impression DTF et les usages..."
+                  value={newProd.description}
+                  onChange={(e) => setNewProd({ ...newProd, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs leading-relaxed"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Code SKU Unique</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: TSHIRT-VNT-001"
-                  value={newProd.sku}
-                  onChange={(e) => setNewProd({ ...newProd, sku: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono"
-                />
+              {/* Product Images & Gallery */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-blue-600" />
+                    <span>Photos & Galerie du Produit ({newProd.images.length})</span>
+                  </label>
+                  <label className="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold shadow-sm">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Importer photos</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => handleImageFileUpload(e, false)}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Add Image by URL */}
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="Ou collez un lien URL d'image (https://...)"
+                    value={newProd.newImageUrlText}
+                    onChange={(e) => setNewProd({ ...newProd, newImageUrlText: e.target.value })}
+                    className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newProd.newImageUrlText.trim()) {
+                        setNewProd(prev => ({
+                          ...prev,
+                          images: [...prev.images, prev.newImageUrlText.trim()],
+                          imageUrl: prev.imageUrl || prev.newImageUrlText.trim(),
+                          newImageUrlText: ''
+                        }));
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg"
+                  >
+                    Ajouter URL
+                  </button>
+                </div>
+
+                {/* Image Thumbnails */}
+                {newProd.images.length > 0 ? (
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 pt-1">
+                    {newProd.images.map((img, idx) => (
+                      <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white">
+                        <img src={img} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = newProd.images.filter((_, i) => i !== idx);
+                            setNewProd({
+                              ...newProd,
+                              images: updated,
+                              imageUrl: updated.length > 0 ? updated[0] : ''
+                            });
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] opacity-90 group-hover:opacity-100 shadow"
+                          title="Supprimer cette image"
+                        >
+                          ✕
+                        </button>
+                        {idx === 0 && (
+                          <span className="absolute bottom-1 left-1 bg-slate-900/80 text-white text-[9px] px-1 rounded font-bold">
+                            Couverture
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic">
+                    Aucune photo ajoutée. Importez des photos depuis votre appareil ou ajoutez une URL.
+                  </p>
+                )}
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Prix de Vente (DZD)</label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  value={newProd.sellingPrice}
-                  onChange={(e) => setNewProd({ ...newProd, sellingPrice: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
-                />
+              {/* Product Features (Bullet points for landing page) */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+                <label className="block text-xs font-bold text-slate-800">
+                  Caractéristiques & Points Forts (Landing Page)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ex: قطن بيور 100% عالي الجودة"
+                    value={newProd.newFeatureText}
+                    onChange={(e) => setNewProd({ ...newProd, newFeatureText: e.target.value })}
+                    className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newProd.newFeatureText.trim()) {
+                        setNewProd(prev => ({
+                          ...prev,
+                          features: [...prev.features, prev.newFeatureText.trim()],
+                          newFeatureText: ''
+                        }));
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+                {newProd.features.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {newProd.features.map((feat, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded-lg border border-blue-200 font-medium"
+                      >
+                        <span>{feat}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewProd({
+                              ...newProd,
+                              features: newProd.features.filter((_, i) => i !== idx)
+                            });
+                          }}
+                          className="hover:text-rose-600 font-bold"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Initial Cost Components */}
               <div className="border-t border-slate-200 pt-3">
-                <p className="text-xs font-bold text-slate-700 mb-2">Composants de Coût (Exemple POD)</p>
+                <p className="text-xs font-bold text-slate-700 mb-2">Composants de Coût POD (Calcul de Marge)</p>
                 <div className="space-y-2">
                   {newProd.components.map((comp, idx) => (
                     <div key={idx} className="flex gap-2 items-center">
@@ -762,7 +1090,7 @@ export const ProductsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowProductModal(false)}
@@ -775,6 +1103,234 @@ export const ProductsPage: React.FC = () => {
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm"
                 >
                   Créer le Produit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Product */}
+      {editingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Edit3 className="w-5 h-5 text-blue-600" />
+                  <span>Modifier le Produit: {editingProduct.name}</span>
+                </h3>
+                <span className="text-xs font-mono text-slate-400">SKU: {editingProduct.sku}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingProduct(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateProduct} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Nom du Produit *</label>
+                <input
+                  type="text"
+                  required
+                  value={editProd.name}
+                  onChange={(e) => setEditProd({ ...editProd, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Prix de Vente (DZD) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={editProd.sellingPrice}
+                    onChange={(e) => setEditProd({ ...editProd, sellingPrice: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Prix Barré / Comparaison (DZD)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Ex: 3500"
+                    value={editProd.compareAtPrice}
+                    onChange={(e) => setEditProd({ ...editProd, compareAtPrice: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-600"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Description Complète</label>
+                <textarea
+                  rows={3}
+                  value={editProd.description}
+                  onChange={(e) => setEditProd({ ...editProd, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs leading-relaxed"
+                />
+              </div>
+
+              {/* Product Images & Gallery */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-blue-600" />
+                    <span>Photos & Galerie ({editProd.images.length})</span>
+                  </label>
+                  <label className="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold shadow-sm">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Ajouter des photos</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => handleImageFileUpload(e, true)}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Add Image by URL */}
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="Ou collez un lien URL d'image (https://...)"
+                    value={editProd.newImageUrlText}
+                    onChange={(e) => setEditProd({ ...editProd, newImageUrlText: e.target.value })}
+                    className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editProd.newImageUrlText.trim()) {
+                        setEditProd(prev => ({
+                          ...prev,
+                          images: [...prev.images, prev.newImageUrlText.trim()],
+                          imageUrl: prev.imageUrl || prev.newImageUrlText.trim(),
+                          newImageUrlText: ''
+                        }));
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg"
+                  >
+                    Ajouter URL
+                  </button>
+                </div>
+
+                {/* Image Thumbnails */}
+                {editProd.images.length > 0 ? (
+                  <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 pt-1">
+                    {editProd.images.map((img, idx) => (
+                      <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-slate-200 bg-white">
+                        <img src={img} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = editProd.images.filter((_, i) => i !== idx);
+                            setEditProd({
+                              ...editProd,
+                              images: updated,
+                              imageUrl: updated.length > 0 ? updated[0] : ''
+                            });
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] opacity-90 group-hover:opacity-100 shadow"
+                          title="Supprimer cette image"
+                        >
+                          ✕
+                        </button>
+                        {idx === 0 && (
+                          <span className="absolute bottom-1 left-1 bg-slate-900/80 text-white text-[9px] px-1 rounded font-bold">
+                            Couverture
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic">
+                    Aucune photo pour ce produit. Importez-en pour l'afficher sur la page produit client.
+                  </p>
+                )}
+              </div>
+
+              {/* Product Features */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+                <label className="block text-xs font-bold text-slate-800">
+                  Caractéristiques & Points Forts (Landing Page)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Ex: قطن بيور 100% عالي الجودة"
+                    value={editProd.newFeatureText}
+                    onChange={(e) => setEditProd({ ...editProd, newFeatureText: e.target.value })}
+                    className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editProd.newFeatureText.trim()) {
+                        setEditProd(prev => ({
+                          ...prev,
+                          features: [...prev.features, prev.newFeatureText.trim()],
+                          newFeatureText: ''
+                        }));
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+                {editProd.features.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {editProd.features.map((feat, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-800 text-xs px-2.5 py-1 rounded-lg border border-blue-200 font-medium"
+                      >
+                        <span>{feat}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditProd({
+                              ...editProd,
+                              features: editProd.features.filter((_, i) => i !== idx)
+                            });
+                          }}
+                          className="hover:text-rose-600 font-bold"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingProduct(null)}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm"
+                >
+                  Enregistrer les Modifications
                 </button>
               </div>
             </form>

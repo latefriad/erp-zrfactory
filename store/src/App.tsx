@@ -7,6 +7,7 @@ import { ServicesGrid } from './components/ServicesGrid';
 import { WhyChooseUs } from './components/WhyChooseUs';
 import { HowItWorks } from './components/HowItWorks';
 import { ProductCatalog } from './components/ProductCatalog';
+import { ProductLandingPage } from './pages/ProductLandingPage';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
@@ -32,6 +33,9 @@ export const App: React.FC = () => {
     }
   });
 
+  // Dedicated Product Landing Page state
+  const [landingProduct, setLandingProduct] = useState<Product | null>(null);
+
   // Modals state
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
@@ -40,6 +44,37 @@ export const App: React.FC = () => {
   const [trackingQuery, setTrackingQuery] = useState<string>('');
   const [isAboutOpen, setIsAboutOpen] = useState<boolean>(false);
   const [successOrder, setSuccessOrder] = useState<any | null>(null);
+
+  // Check URL query parameters for direct product landing link
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const prodId = params.get('product') || params.get('p');
+    if (prodId) {
+      const found = products.find(p => p.id === prodId);
+      if (found) {
+        setLandingProduct(found);
+      }
+    }
+  }, [products]);
+
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const prodId = params.get('product') || params.get('p');
+      if (prodId) {
+        const found = products.find(p => p.id === prodId);
+        if (found) {
+          setLandingProduct(found);
+          return;
+        }
+      }
+      setLandingProduct(null);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [products]);
 
   // Save cart changes
   useEffect(() => {
@@ -103,6 +138,26 @@ export const App: React.FC = () => {
     setCart([]);
   };
 
+  const openProductLanding = (product: Product) => {
+    setLandingProduct(product);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('product', product.id);
+      window.history.pushState({}, '', url.toString());
+    } catch {}
+  };
+
+  const closeProductLanding = () => {
+    setLandingProduct(null);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('product');
+      url.searchParams.delete('p');
+      window.history.pushState({}, '', url.toString());
+    } catch {}
+  };
+
   const handleOrderSuccess = (order: any) => {
     setCart([]);
     setIsCheckoutOpen(false);
@@ -116,10 +171,15 @@ export const App: React.FC = () => {
   };
 
   const scrollToProducts = () => {
-    const el = document.getElementById('products');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+    if (landingProduct) {
+      closeProductLanding();
     }
+    setTimeout(() => {
+      const el = document.getElementById('products');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 50);
   };
 
   return (
@@ -138,28 +198,38 @@ export const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1">
-        <Hero
-          onShopClick={scrollToProducts}
-          onTrackClick={() => {
-            setTrackingQuery('');
-            setIsTrackingOpen(true);
-          }}
-        />
+        {landingProduct ? (
+          <ProductLandingPage
+            product={landingProduct}
+            onBack={closeProductLanding}
+            onOrderSuccess={handleOrderSuccess}
+          />
+        ) : (
+          <>
+            <Hero
+              onShopClick={scrollToProducts}
+              onTrackClick={() => {
+                setTrackingQuery('');
+                setIsTrackingOpen(true);
+              }}
+            />
 
-        <ServicesGrid />
+            <ServicesGrid />
 
-        <WhyChooseUs />
+            <WhyChooseUs />
 
-        <ProductCatalog
-          products={products}
-          loading={loadingProducts}
-          error={loadError}
-          onRetry={fetchProducts}
-          onSelectProduct={product => setSelectedProduct(product)}
-          onQuickAdd={product => setSelectedProduct(product)}
-        />
+            <ProductCatalog
+              products={products}
+              loading={loadingProducts}
+              error={loadError}
+              onRetry={fetchProducts}
+              onSelectProduct={product => openProductLanding(product)}
+              onQuickAdd={product => openProductLanding(product)}
+            />
 
-        <HowItWorks />
+            <HowItWorks />
+          </>
+        )}
       </main>
 
       {/* Footer */}

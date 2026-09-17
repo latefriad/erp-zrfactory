@@ -34,6 +34,10 @@ export const CreateProductSchema = z.object({
   sku: z.string().min(2, 'Le code SKU est requis'),
   description: z.string().optional().nullable(),
   sellingPrice: z.number().min(0, 'Le prix de vente doit être positif'),
+  compareAtPrice: z.number().min(0).optional().default(0),
+  imageUrl: z.string().optional().nullable(),
+  images: z.array(z.string()).optional().default([]),
+  features: z.array(z.string()).optional().default([]),
   costComponents: z.array(CostComponentSchema).optional().default([]),
 });
 
@@ -41,6 +45,10 @@ export const UpdateProductSchema = z.object({
   name: z.string().min(2).optional(),
   description: z.string().optional().nullable(),
   sellingPrice: z.number().min(0).optional(),
+  compareAtPrice: z.number().min(0).optional(),
+  imageUrl: z.string().optional().nullable(),
+  images: z.array(z.string()).optional(),
+  features: z.array(z.string()).optional(),
   isActive: z.boolean().optional(),
 });
 

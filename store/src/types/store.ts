@@ -17,6 +17,10 @@ export interface Product {
   description?: string | null;
   baseCost: number;
   sellingPrice: number;
+  compareAtPrice?: number;
+  imageUrl?: string | null;
+  images?: string[];
+  features?: string[];
   isActive: boolean;
   variants?: ProductVariant[];
   createdAt: string;

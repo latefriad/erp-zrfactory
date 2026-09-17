@@ -33,6 +33,10 @@ export interface Product {
   description?: string | null;
   baseCost: number;
   sellingPrice: number;
+  compareAtPrice?: number;
+  imageUrl?: string | null;
+  images?: string[];
+  features?: string[];
   grossProfit: number; // sellingPrice - totalCost
   costComponents?: CostComponent[];
   variants?: ProductVariant[];

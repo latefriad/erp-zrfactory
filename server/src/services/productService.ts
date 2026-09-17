@@ -34,7 +34,7 @@ export class ProductService {
   }
 
   public listProducts(query?: { search?: string; isActive?: boolean }): ProductDetail[] {
-    let sql = `SELECT id, name, sku, description, base_cost, selling_price, is_active, created_at, updated_at FROM products WHERE 1=1`;
+    let sql = `SELECT id, name, sku, description, base_cost, selling_price, compare_at_price, image_url, images, features, is_active, created_at, updated_at FROM products WHERE 1=1`;
     const params: any[] = [];
 
     if (query?.isActive !== undefined) {
@@ -60,6 +60,26 @@ export class ProductService {
         ? Math.round((grossProfit / p.selling_price) * 100)
         : 0;
 
+      let parsedImages: string[] = [];
+      if (p.images) {
+        try {
+          parsedImages = JSON.parse(p.images);
+        } catch {
+          parsedImages = [];
+        }
+      } else if (p.image_url) {
+        parsedImages = [p.image_url];
+      }
+
+      let parsedFeatures: string[] = [];
+      if (p.features) {
+        try {
+          parsedFeatures = JSON.parse(p.features);
+        } catch {
+          parsedFeatures = [];
+        }
+      }
+
       return {
         id: p.id,
         name: p.name,
@@ -67,6 +87,10 @@ export class ProductService {
         description: p.description,
         baseCost: p.base_cost,
         sellingPrice: p.selling_price,
+        compareAtPrice: p.compare_at_price || undefined,
+        imageUrl: p.image_url || (parsedImages.length > 0 ? parsedImages[0] : null),
+        images: parsedImages,
+        features: parsedFeatures,
         grossProfit,
         totalCost,
         grossMarginPercentage,
@@ -81,7 +105,7 @@ export class ProductService {
 
   public getProductById(id: string): ProductDetail {
     const p = this.db.prepare(`
-      SELECT id, name, sku, description, base_cost, selling_price, is_active, created_at, updated_at 
+      SELECT id, name, sku, description, base_cost, selling_price, compare_at_price, image_url, images, features, is_active, created_at, updated_at 
       FROM products 
       WHERE id = ?
     `).get(id) as any;
@@ -98,6 +122,26 @@ export class ProductService {
       ? Math.round((grossProfit / p.selling_price) * 100)
       : 0;
 
+    let parsedImages: string[] = [];
+    if (p.images) {
+      try {
+        parsedImages = JSON.parse(p.images);
+      } catch {
+        parsedImages = [];
+      }
+    } else if (p.image_url) {
+      parsedImages = [p.image_url];
+    }
+
+    let parsedFeatures: string[] = [];
+    if (p.features) {
+      try {
+        parsedFeatures = JSON.parse(p.features);
+      } catch {
+        parsedFeatures = [];
+      }
+    }
+
     return {
       id: p.id,
       name: p.name,
@@ -105,6 +149,10 @@ export class ProductService {
       description: p.description,
       baseCost: p.base_cost,
       sellingPrice: p.selling_price,
+      compareAtPrice: p.compare_at_price || undefined,
+      imageUrl: p.image_url || (parsedImages.length > 0 ? parsedImages[0] : null),
+      images: parsedImages,
+      features: parsedFeatures,
       grossProfit,
       totalCost,
       grossMarginPercentage,
@@ -158,6 +206,10 @@ export class ProductService {
     sku: string;
     description?: string | null;
     sellingPrice: number;
+    compareAtPrice?: number;
+    imageUrl?: string | null;
+    images?: string[];
+    features?: string[];
     costComponents?: Array<{ name: string; type: CostComponentType; cost: number }>;
   }): ProductDetail {
     const cleanSku = data.sku.trim().toUpperCase();
@@ -168,12 +220,27 @@ export class ProductService {
     }
 
     const productId = `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const imagesJson = data.images && data.images.length > 0
+      ? JSON.stringify(data.images)
+      : (data.imageUrl ? JSON.stringify([data.imageUrl]) : null);
+    const mainImageUrl = data.imageUrl || (data.images && data.images.length > 0 ? data.images[0] : null);
+    const featuresJson = data.features && data.features.length > 0 ? JSON.stringify(data.features) : null;
 
     const tx = this.db.transaction(() => {
       this.db.prepare(`
-        INSERT INTO products (id, name, sku, description, base_cost, selling_price, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 0, ?, 1, DATETIME('now'), DATETIME('now'))
-      `).run(productId, data.name.trim(), cleanSku, data.description || null, data.sellingPrice);
+        INSERT INTO products (id, name, sku, description, base_cost, selling_price, compare_at_price, image_url, images, features, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 1, DATETIME('now'), DATETIME('now'))
+      `).run(
+        productId,
+        data.name.trim(),
+        cleanSku,
+        data.description || null,
+        data.sellingPrice,
+        data.compareAtPrice || null,
+        mainImageUrl,
+        imagesJson,
+        featuresJson
+      );
 
       if (data.costComponents && data.costComponents.length > 0) {
         const insertComp = this.db.prepare(`
@@ -197,6 +264,10 @@ export class ProductService {
     name?: string;
     description?: string | null;
     sellingPrice?: number;
+    compareAtPrice?: number | null;
+    imageUrl?: string | null;
+    images?: string[];
+    features?: string[];
     isActive?: boolean;
   }): ProductDetail {
     this.getProductById(id); // Ensure exists
@@ -215,6 +286,26 @@ export class ProductService {
     if (data.sellingPrice !== undefined) {
       fields.push('selling_price = ?');
       values.push(data.sellingPrice);
+    }
+    if (data.compareAtPrice !== undefined) {
+      fields.push('compare_at_price = ?');
+      values.push(data.compareAtPrice || null);
+    }
+    if (data.imageUrl !== undefined) {
+      fields.push('image_url = ?');
+      values.push(data.imageUrl);
+    }
+    if (data.images !== undefined) {
+      fields.push('images = ?');
+      values.push(JSON.stringify(data.images));
+      if (data.images.length > 0 && !data.imageUrl) {
+        fields.push('image_url = ?');
+        values.push(data.images[0]);
+      }
+    }
+    if (data.features !== undefined) {
+      fields.push('features = ?');
+      values.push(JSON.stringify(data.features));
     }
     if (data.isActive !== undefined) {
       fields.push('is_active = ?');
