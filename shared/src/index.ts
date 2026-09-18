@@ -30,7 +30,16 @@ export { ProductionStatus } from './types/production';
 export type { ProductionItem, ProductionMetrics } from './types/production';
 
 export { CarrierName, DeliveryType, ManifestStatus } from './types/shipping';
-export type { ShippingManifest, ShippingOrderSummary, ShippingRateZone, ShippingMetrics } from './types/shipping';
+export type { 
+  ShippingManifest, 
+  ShippingOrderSummary, 
+  ShippingRateZone, 
+  ShippingMetrics,
+  CourierConfiguration,
+  DzshipTrackingEvent,
+  DzshipTrackingResult,
+  DzshipDispatchResult
+} from './types/shipping';
 
 export type {
   DashboardFinancials,

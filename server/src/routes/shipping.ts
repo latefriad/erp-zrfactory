@@ -1,11 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { ShippingService } from '../services/shippingService';
+import { DzshipService } from '../services/dzshipService';
 import { authenticate, requireRole } from '../middleware/auth';
 import { UserRole, ManifestStatus } from '@zr-erp/shared';
 import { ValidationError } from '../utils/errors';
 
 const router = Router();
 const shippingService = new ShippingService();
+const dzshipService = new DzshipService();
 
 // All shipping and logistics endpoints require authentication
 router.use(authenticate);
@@ -243,6 +245,140 @@ router.put(
       res.json({
         success: true,
         data: { rate },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ============================================================================
+// DZSHIP ALGERIAN COURIERS INTEGRATION (Elogistia, ZR Express, Ecom Delivery)
+// ============================================================================
+
+// 12. List configured shipping couriers
+router.get('/couriers', (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const couriers = dzshipService.listCouriers(true);
+    res.json({
+      success: true,
+      data: { couriers },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 13. Save / update courier settings & API keys (ADMIN, PARTNER)
+router.post(
+  '/couriers',
+  requireRole(UserRole.ADMIN, UserRole.PARTNER),
+  (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { courierKey, name, isActive, isDefault, credentials, fromWilaya, defaultDeliveryType, notes } = req.body;
+      if (!courierKey) {
+        throw new ValidationError('La clé du transporteur est obligatoire (ex: elogistia, zrexpress, ecomdelivery).');
+      }
+
+      const courier = dzshipService.saveCourier({
+        courierKey,
+        name,
+        isActive,
+        isDefault,
+        credentials,
+        fromWilaya,
+        defaultDeliveryType,
+        notes
+      });
+
+      res.json({
+        success: true,
+        data: { courier },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// 14. Test courier API credentials
+router.post(
+  '/couriers/:key/test',
+  requireRole(UserRole.ADMIN, UserRole.PARTNER),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await dzshipService.testCourier(req.params.key);
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// 15. 1-Click Dispatch Order to Courier via dzship (EMPLOYEE, PARTNER, ADMIN)
+router.post(
+  '/dispatch-order',
+  requireRole(UserRole.ADMIN, UserRole.PARTNER, UserRole.EMPLOYEE),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { orderId, courierKey } = req.body;
+      if (!orderId) {
+        throw new ValidationError('L\'identifiant de commande (orderId) est obligatoire.');
+      }
+
+      const result = await dzshipService.dispatchOrder(orderId, courierKey, req.user);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// 16. Batch Dispatch multiple orders via dzship (EMPLOYEE, PARTNER, ADMIN)
+router.post(
+  '/dispatch-batch',
+  requireRole(UserRole.ADMIN, UserRole.PARTNER, UserRole.EMPLOYEE),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { orderIds, courierKey } = req.body;
+      if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+        throw new ValidationError('Une liste de commandes (orderIds) est obligatoire.');
+      }
+
+      const result = await dzshipService.dispatchBatch(orderIds, courierKey, req.user);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// 17. Track parcel live status from dzship
+router.post(
+  '/track-order',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { trackingNumber, courierKey } = req.body;
+      if (!trackingNumber) {
+        throw new ValidationError('Le numéro de suivi (trackingNumber) est obligatoire.');
+      }
+
+      const result = await dzshipService.trackParcel(trackingNumber, courierKey);
+
+      res.json({
+        success: true,
+        data: result,
       });
     } catch (error) {
       next(error);

@@ -17,7 +17,10 @@ import {
   Sliders,
   FileCheck,
   Info,
-  Clock
+  Clock,
+  Truck,
+  Key,
+  ArrowRight
 } from 'lucide-react';
 
 interface SystemSetting {
@@ -37,7 +40,7 @@ interface BackupFileInfo {
 
 export const SettingsPage: React.FC = () => {
   const { isAdmin } = useAuth();
-  const { language } = useApp();
+  const { language, setActiveTab } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<'general' | 'backups' | 'users'>('general');
 
@@ -259,6 +262,42 @@ export const SettingsPage: React.FC = () => {
               <span className="text-sm font-medium">{settingsNotice.message}</span>
             </div>
           )}
+
+          {/* Shipping Couriers dzship Integration Shortcut */}
+          <div className="bg-linear-to-r from-blue-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-6 border border-blue-800/40 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
+                <Truck className="w-6 h-6 text-amber-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-base text-white">
+                    {language === 'ar'
+                      ? 'ربط شركات التوصيل الجزائرية (dzship)'
+                      : 'Intégration Transporteurs Algériens (dzship)'}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                    Elogistia • ZR Express • Ecom Delivery • Yalidine
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                  {language === 'ar'
+                    ? 'إدارة مفاتيح API لشركات التوصيل، تفعيل الشحن بضغطة زر وتتبع الشحنات اللحظي عبر 58 ولاية.'
+                    : 'Configurez vos clés API, testez la connexion en direct et activez l\'expédition 1-clic pour vos colis.'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('shipping')}
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition-colors inline-flex items-center gap-2 whitespace-nowrap self-stretch sm:self-auto justify-center cursor-pointer"
+            >
+              <Key className="w-4 h-4 text-amber-300" />
+              <span>{language === 'ar' ? 'إدارة شركات التوصيل والمفاتيح' : 'Gérer les Transporteurs & Clés'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">

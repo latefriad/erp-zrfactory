@@ -1,8 +1,12 @@
 export enum CarrierName {
   YALIDINE = 'YALIDINE',
+  ELOGISTIA = 'ELOGISTIA',
+  ZR_EXPRESS = 'ZR_EXPRESS',
+  ECOM_DELIVERY = 'ECOM_DELIVERY',
   ZR_DISPATCH = 'ZR_DISPATCH',
   MAYSTRO = 'MAYSTRO',
   KAZITOUR = 'KAZITOUR',
+  SANDBOX = 'SANDBOX',
   OTHER = 'OTHER'
 }
 
@@ -81,4 +85,44 @@ export interface ShippingMetrics {
   deliverySuccessRate: number;
   returnRate: number;
   activeManifestsCount: number;
+}
+
+export interface CourierConfiguration {
+  id: string;
+  courierKey: string;
+  name: string;
+  isActive: boolean;
+  isDefault: boolean;
+  credentials: Record<string, string>;
+  fromWilaya: number;
+  defaultDeliveryType: 'home' | 'stopdesk';
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface DzshipTrackingEvent {
+  status: string;
+  rawStatus?: string;
+  timestamp?: string;
+  raw?: any;
+}
+
+export interface DzshipTrackingResult {
+  trackingNumber: string;
+  status: string;
+  courier?: string;
+  events: DzshipTrackingEvent[];
+  raw?: any;
+}
+
+export interface DzshipDispatchResult {
+  orderId: string;
+  orderNumber: string;
+  trackingNumber: string;
+  courier: string;
+  courierName: string;
+  status: string;
+  courierReference?: string;
+  labelUrl?: string;
 }
