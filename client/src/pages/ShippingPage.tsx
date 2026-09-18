@@ -477,9 +477,14 @@ export const ShippingPage: React.FC = () => {
       setTestingCourierKey(courierKey);
       setCourierTestResults((prev) => ({ ...prev, [courierKey]: null }));
 
+      const localCreds = courierFormCreds[courierKey] || {};
+
       const res = await fetchApi<{ success: boolean; message: string; ratesCount?: number }>(
         `/shipping/couriers/${courierKey}/test`,
-        { method: 'POST' }
+        {
+          method: 'POST',
+          body: JSON.stringify({ credentials: localCreds }),
+        }
       );
 
       setCourierTestResults((prev) => ({
@@ -487,11 +492,11 @@ export const ShippingPage: React.FC = () => {
         [courierKey]: res,
       }));
 
-      setActionSuccess(
-        language === 'ar'
-          ? `نجح الاتصال بـ ${courierKey}! ${res.ratesCount ? `(تم تفعيل ${res.ratesCount} ولاية)` : ''}`
-          : `Connexion dzship réussie pour ${courierKey} ! ${res.ratesCount ? `(${res.ratesCount} wilayas disponibles)` : ''}`
-      );
+      if (res.success) {
+        setActionSuccess(res.message);
+      } else {
+        setActionError(res.message);
+      }
     } catch (err: any) {
       const errMsg = err.message || 'Échec du test de connexion';
       setCourierTestResults((prev) => ({

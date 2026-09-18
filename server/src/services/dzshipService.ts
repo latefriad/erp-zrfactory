@@ -284,10 +284,33 @@ export class DzshipService {
   }
 
   /**
+   * Helper: safely parse JSON response, with friendly explanations on HTML / 502 Bad Gateway
+   */
+  private async safeParseJsonResponse(response: Response, courierName: string): Promise<any> {
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      if (response.status === 502 || response.status === 503) {
+        throw new Error(
+          `Le serveur de ${courierName} ou la passerelle dzship a retourné une indisponibilité (HTTP ${response.status} Bad Gateway). La clé API semble invalide ou le service du transporteur est temporairement inaccessible.`
+        );
+      }
+      if (response.status === 504) {
+        throw new Error(`Délai d'attente dépassé avec le serveur de ${courierName} (HTTP 504 Gateway Timeout).`);
+      }
+      throw new Error(`Réponse non valide (HTTP ${response.status}) de la passerelle de livraison.`);
+    }
+  }
+
+  /**
    * Test connection to courier via dzship
    */
-  public async testCourier(courierKey: string): Promise<{ success: boolean; message: string; details?: any }> {
-    const courier = this.getRawCourier(courierKey);
+  public async testCourier(
+    courierKey: string,
+    credentialsOverride?: CourierCredentialsInput
+  ): Promise<{ success: boolean; message: string; details?: any }> {
+    const rawStored = this.getRawCourier(courierKey);
 
     if (courierKey === 'sandbox') {
       return {
@@ -297,14 +320,39 @@ export class DzshipService {
       };
     }
 
-    // For real couriers, we test credentials by querying rates for route 16 -> 31
+    // Merge stored credentials with any currently typed credentials
+    const credsToTest: Record<string, string> = { ...(rawStored.credentials || {}) };
+    if (credentialsOverride) {
+      for (const [k, v] of Object.entries(credentialsOverride)) {
+        if (v && typeof v === 'string' && !v.includes('••••')) {
+          credsToTest[k] = v.trim();
+        }
+      }
+    }
+
+    // 1. Check required credentials before sending request
+    const courierDef = SUPPORTED_COURIERS.find(c => c.key === courierKey);
+    if (courierDef && courierDef.requiredFields.length > 0) {
+      for (const field of courierDef.requiredFields) {
+        const val = credsToTest[field.key];
+        if (!val || typeof val !== 'string' || val.trim() === '') {
+          return {
+            success: false,
+            message: `Veuillez d'abord renseigner ${field.label} pour ${rawStored.name} avant de tester la connexion.`,
+          };
+        }
+      }
+    }
+
+    // 2. For real couriers, test credentials by querying rates for route 16 -> 31
     try {
       const payload = {
         courier: courierKey,
-        credentials: courier.credentials,
+        credentials: credsToTest,
         query: {
-          fromWilaya: courier.fromWilaya || 16,
+          fromWilaya: rawStored.fromWilaya || 16,
           toWilaya: 31,
+          toCommune: 'Oran',
           deliveryType: 'home'
         }
       };
@@ -315,27 +363,27 @@ export class DzshipService {
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json() as any;
+      const data = await this.safeParseJsonResponse(response, rawStored.name);
 
       if (!response.ok || data.error) {
         const errMsg = data.error?.message || data.error?.code || `Erreur HTTP ${response.status}`;
         return {
           success: false,
-          message: `Échec d'authentification ${courier.name} : ${errMsg}`,
+          message: `Échec d'authentification ${rawStored.name} : ${errMsg}`,
           details: data.error
         };
       }
 
       return {
         success: true,
-        message: `Authentification réussie auprès de ${courier.name} ! La passerelle est opérationnelle.`,
+        message: `Authentification réussie auprès de ${rawStored.name} ! La passerelle est opérationnelle.`,
         details: data
       };
     } catch (err: any) {
       logger.error(`Error testing courier ${courierKey}:`, err);
       return {
         success: false,
-        message: `Erreur de connexion avec ${courier.name} : ${err.message}`,
+        message: `Erreur de connexion avec ${rawStored.name} : ${err.message}`,
       };
     }
   }
@@ -429,6 +477,20 @@ export class DzshipService {
     }
 
     const courier = this.getRawCourier(targetCourierKey);
+
+    // 3.5 Validate that courier credentials are configured
+    const courierDef = SUPPORTED_COURIERS.find(c => c.key === targetCourierKey);
+    if (courierDef && courierDef.requiredFields.length > 0) {
+      for (const field of courierDef.requiredFields) {
+        const val = courier.credentials?.[field.key];
+        if (!val || typeof val !== 'string' || val.trim() === '') {
+          throw new ValidationError(
+            `La société de livraison ${courier.name} n'est pas encore configurée (champ ${field.label} manquant). Rendez-vous dans Expéditions > 5. Sociétés & Clés API (dzship) pour renseigner votre clé avant d'expédier, ou sélectionnez le mode Test (Sandbox).`
+          );
+        }
+      }
+    }
+
     const wilayaCode = this.extractWilayaCode(order.shipping_wilaya);
     const communeName = (order.shipping_commune && order.shipping_commune.trim()) || WILAYAS_MAP[wilayaCode] || 'Alger';
     const recipientName = (order.customer_name && order.customer_name.trim()) || 'Client';
@@ -466,7 +528,7 @@ export class DzshipService {
       body: JSON.stringify(dzshipPayload)
     });
 
-    const data = await response.json() as any;
+    const data = await this.safeParseJsonResponse(response, courier.name);
 
     if (!response.ok || data.error) {
       const errMsg = data.error?.message || data.error?.code || `Erreur d'expédition (${response.status})`;
@@ -589,7 +651,7 @@ export class DzshipService {
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json() as any;
+    const data = await this.safeParseJsonResponse(response, courier.name);
 
     if (!response.ok || data.error) {
       throw new ValidationError(data.error?.message || `Erreur de suivi dzship (${response.status})`);

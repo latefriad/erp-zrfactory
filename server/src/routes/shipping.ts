@@ -307,7 +307,8 @@ router.post(
   requireRole(UserRole.ADMIN, UserRole.PARTNER),
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await dzshipService.testCourier(req.params.key);
+      const { credentials } = req.body || {};
+      const result = await dzshipService.testCourier(req.params.key, credentials);
       res.json({
         success: true,
         data: result,

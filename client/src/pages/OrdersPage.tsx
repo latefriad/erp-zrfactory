@@ -167,14 +167,28 @@ export const OrdersPage: React.FC = () => {
   const handleOpenTransferModal = (order: Order) => {
     setTransferModalOrder(order);
     setTransferFeedback(null);
+
+    const isConfigured = (c: CourierConfiguration) =>
+      c.courierKey === 'sandbox' ||
+      (c.credentials && Object.values(c.credentials).some(v => v && v.trim() !== ''));
+
     if (order.deliveryCompany) {
-      const match = couriers.find(c => order.deliveryCompany?.toLowerCase().includes(c.courierKey.toLowerCase()) || c.name.toLowerCase().includes(order.deliveryCompany?.toLowerCase() || ''));
+      const match = couriers.find(
+        c =>
+          (order.deliveryCompany?.toLowerCase().includes(c.courierKey.toLowerCase()) ||
+            c.name.toLowerCase().includes(order.deliveryCompany?.toLowerCase() || '')) &&
+          isConfigured(c)
+      );
       if (match) {
         setTransferCourierKey(match.courierKey);
         return;
       }
     }
-    const def = couriers.find(c => c.isDefault && c.isActive) || couriers.find(c => c.isActive) || couriers[0];
+    const def =
+      couriers.find(c => c.isDefault && c.isActive && isConfigured(c)) ||
+      couriers.find(c => c.isActive && isConfigured(c)) ||
+      couriers.find(c => isConfigured(c)) ||
+      couriers[0];
     if (def) {
       setTransferCourierKey(def.courierKey);
     }
@@ -1368,19 +1382,22 @@ export const OrdersPage: React.FC = () => {
                   disabled={isTransferring}
                   className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {couriers.map((c) => (
-                    <option key={c.courierKey} value={c.courierKey}>
-                      {c.name} ({c.courierKey}) {c.isDefault ? '★ [Par Défaut]' : ''}
-                    </option>
-                  ))}
+                  {couriers.map((c) => {
+                    const isConfigured = c.courierKey === 'sandbox' || (c.credentials && Object.values(c.credentials).some(v => v && v.trim() !== ''));
+                    return (
+                      <option key={c.courierKey} value={c.courierKey}>
+                        {c.name} {isConfigured ? '✓' : '⚠️ (Clé non configurée)'} {c.isDefault ? '★ [Par Défaut]' : ''}
+                      </option>
+                    );
+                  })}
                   {couriers.length === 0 && (
                     <>
+                      <option value="sandbox">Sandbox Test Mode ✓</option>
                       <option value="elogistia">Elogistia</option>
                       <option value="zrexpress">ZR Express</option>
                       <option value="zrexpressnew">ZR Express (New)</option>
                       <option value="ecomdelivery">Ecom Delivery</option>
                       <option value="yalidine">Yalidine Express</option>
-                      <option value="sandbox">Sandbox Test Mode</option>
                     </>
                   )}
                 </select>
@@ -1390,6 +1407,30 @@ export const OrdersPage: React.FC = () => {
                     : 'Le colis sera créé directement via l\'API dzship chez le transporteur sélectionné avec bordereau & tracking.'}
                 </p>
               </div>
+
+              {/* Warning if selected courier has no credentials */}
+              {(() => {
+                const selected = couriers.find(c => c.courierKey === transferCourierKey);
+                const isConfigured = selected ? (selected.courierKey === 'sandbox' || (selected.credentials && Object.values(selected.credentials).some(v => v && v.trim() !== ''))) : true;
+                if (!isConfigured && selected) {
+                  return (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold">
+                          {language === 'ar' ? `مفتاح API لشركة ${selected.name} غير مسجل بعد` : `Clé API pour ${selected.name} non enregistrée`}
+                        </div>
+                        <p className="text-[11px] text-amber-700 mt-0.5">
+                          {language === 'ar'
+                            ? 'يرجى إدخال المفتاح في قسم "الشحن > 5. الشركات ومفاتيح API" وحفظه، أو اختر وضع Sandbox للتجربة.'
+                            : 'Veuillez enregistrer votre clé dans Expéditions > 5. Sociétés & Clés API (dzship), ou choisir le mode Sandbox pour tester.'}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Transfer Feedback */}
               {transferFeedback && (
@@ -1426,7 +1467,18 @@ export const OrdersPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleConfirmTransfer}
-                disabled={isTransferring}
+                disabled={
+                  isTransferring ||
+                  Boolean(
+                    couriers.length > 0 &&
+                    couriers.some(
+                      c =>
+                        c.courierKey === transferCourierKey &&
+                        c.courierKey !== 'sandbox' &&
+                        (!c.credentials || !Object.values(c.credentials).some(v => v && v.trim() !== ''))
+                    )
+                  )
+                }
                 className="px-5 py-2 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isTransferring ? (
