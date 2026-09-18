@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Search, PackageCheck, Truck, CheckCircle2, Clock, AlertCircle, Loader2, Layers, MapPin } from 'lucide-react';
 import { OrderTrackingInfo } from '../types/store';
 import { storeApi } from '../services/storeApi';
+import { recentOrdersService, RecentStoreOrder } from '../services/recentOrders';
 
 interface OrderTrackingModalProps {
   isOpen: boolean;
@@ -16,6 +17,9 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  const [recentOrders, setRecentOrders] = useState<RecentStoreOrder[]>(() =>
+    recentOrdersService.getRecentOrders()
+  );
   const [query, setQuery] = useState(initialQuery || '');
   const [loading, setLoading] = useState(false);
   const [orderInfo, setOrderInfo] = useState<OrderTrackingInfo | null>(null);
@@ -43,9 +47,13 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   };
 
   useEffect(() => {
-    if (initialQuery) {
-      setQuery(initialQuery);
-      handleSearch(initialQuery);
+    const recents = recentOrdersService.getRecentOrders();
+    setRecentOrders(recents);
+
+    const activeQ = initialQuery || (recents.length > 0 ? recents[0].orderNumber : '');
+    if (activeQ) {
+      setQuery(activeQ);
+      handleSearch(activeQ);
     }
   }, [initialQuery]);
 
@@ -122,7 +130,37 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-6 overflow-y-auto space-y-5">
+          {/* Recent Orders Quick Select Chips */}
+          {recentOrders.length > 0 && (
+            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+              <span className="text-[11px] font-bold text-slate-500 block">
+                طلباتك المسجلة مؤخراً (اضغط للتتبع الفوري):
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {recentOrders.map(ord => (
+                  <button
+                    key={ord.id}
+                    type="button"
+                    onClick={() => {
+                      setQuery(ord.orderNumber);
+                      handleSearch(ord.orderNumber);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                      query === ord.orderNumber
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-300 hover:border-blue-400 hover:text-blue-600'
+                    }`}
+                  >
+                    <PackageCheck className="w-3.5 h-3.5 text-blue-500" />
+                    <span>#{ord.orderNumber}</span>
+                    <span className="text-[10px] text-slate-400">({ord.total.toLocaleString('fr-DZ')} د.ج)</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Search Form */}
           <form
             onSubmit={e => {
@@ -144,7 +182,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md transition-colors flex items-center gap-1.5 shrink-0"
+              className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-md transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>بحث</span>}
             </button>

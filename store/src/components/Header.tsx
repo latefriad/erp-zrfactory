@@ -3,6 +3,7 @@ import { ShoppingBag, Search, Menu, X, PackageCheck, PhoneCall, ShieldCheck } fr
 
 interface HeaderProps {
   cartCount: number;
+  recentOrdersCount?: number;
   onOpenCart: () => void;
   onOpenTracking: () => void;
   onOpenAbout: () => void;
@@ -11,6 +12,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   cartCount,
+  recentOrdersCount = 0,
   onOpenCart,
   onOpenTracking,
   onOpenAbout,
@@ -26,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1 text-emerald-400 font-medium">
               <ShieldCheck className="w-3.5 h-3.5" />
-              طباعة DTF احترافية وتطريز عالي الدقة
+              طباعة DTF احترافية وتطريز عالي الدقة (+10 قطع)
             </span>
             <span className="hidden md:inline text-slate-500">|</span>
             <span className="hidden md:inline">التوصيل متوفر لـ 58 ولاية والدفع عند الاستلام</span>
@@ -76,19 +78,19 @@ export const Header: React.FC<HeaderProps> = ({
             </a>
             <button
               onClick={onNavigateProducts}
-              className="text-slate-300 hover:text-blue-400 transition-colors py-2"
+              className="text-slate-300 hover:text-blue-400 transition-colors py-2 cursor-pointer"
             >
               المنتجات والكتالوج
             </button>
             <button
               onClick={onOpenAbout}
-              className="text-slate-300 hover:text-blue-400 transition-colors py-2"
+              className="text-slate-300 hover:text-blue-400 transition-colors py-2 cursor-pointer"
             >
               من نحن
             </button>
             <button
               onClick={onOpenTracking}
-              className="text-slate-300 hover:text-blue-400 transition-colors py-2 flex items-center gap-1"
+              className="text-slate-300 hover:text-blue-400 transition-colors py-2 flex items-center gap-1 cursor-pointer"
             >
               <PackageCheck className="w-4 h-4 text-blue-400" />
               تتبع الطلب
@@ -97,10 +99,22 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Actions */}
           <div className="flex items-center gap-3">
+            {/* Recent Orders Button (if any exist) */}
+            {recentOrdersCount > 0 && (
+              <button
+                onClick={onOpenTracking}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all shadow-sm cursor-pointer"
+                title="عرض ومتابعة طلباتك المسجلة"
+              >
+                <PackageCheck className="w-4 h-4 text-emerald-400" />
+                <span>طلباتي ({recentOrdersCount})</span>
+              </button>
+            )}
+
             {/* Quick Track Button (Desktop) */}
             <button
               onClick={onOpenTracking}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all cursor-pointer"
             >
               <PackageCheck className="w-4 h-4 text-blue-400" />
               تتبع طلبي

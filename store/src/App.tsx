@@ -15,6 +15,7 @@ import { OrderSuccessModal } from './components/OrderSuccessModal';
 import { OrderTrackingModal } from './components/OrderTrackingModal';
 import { AboutModal } from './components/AboutModal';
 import { Footer } from './components/Footer';
+import { recentOrdersService, RecentStoreOrder } from './services/recentOrders';
 
 const CART_STORAGE_KEY = 'zr_store_cart_v1';
 
@@ -22,6 +23,12 @@ export const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(() => storeApi.getInitialProducts());
   const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Recent orders state persisted to localStorage (survives page refresh)
+  const [recentOrders, setRecentOrders] = useState<RecentStoreOrder[]>(() =>
+    recentOrdersService.getRecentOrders()
+  );
+  const [showRecentBanner, setShowRecentBanner] = useState<boolean>(true);
 
   // Cart state persisted to localStorage
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -162,6 +169,9 @@ export const App: React.FC = () => {
     setCart([]);
     setIsCheckoutOpen(false);
     setSuccessOrder(order);
+    recentOrdersService.saveRecentOrder(order);
+    setRecentOrders(recentOrdersService.getRecentOrders());
+    setShowRecentBanner(true);
   };
 
   const handleTrackOrderFromSuccess = (orderNumber: string) => {
@@ -187,14 +197,55 @@ export const App: React.FC = () => {
       {/* Header */}
       <Header
         cartCount={totalCartCount}
+        recentOrdersCount={recentOrders.length}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenTracking={() => {
-          setTrackingQuery('');
+          setTrackingQuery(recentOrders.length > 0 ? recentOrders[0].orderNumber : '');
           setIsTrackingOpen(true);
         }}
         onOpenAbout={() => setIsAboutOpen(true)}
         onNavigateProducts={scrollToProducts}
       />
+
+      {/* Persistent Recent Order Banner (survives page refresh / F5) */}
+      {showRecentBanner && recentOrders.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white border-b border-blue-800/60 py-2.5 px-4 shadow-sm animate-in slide-in-from-top-2 duration-300">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-2.5 w-2.5 relative shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="font-medium text-slate-200">
+                🛍️ لديك طلب مسجل حديثاً برقم{' '}
+                <span className="font-mono font-black text-white bg-blue-600/50 border border-blue-400/40 px-2 py-0.5 rounded">
+                  #{recentOrders[0].orderNumber}
+                </span>
+                {' '}({recentOrders[0].total.toLocaleString('fr-DZ')} د.ج) - قيد المراجعة والتجهيز
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setTrackingQuery(recentOrders[0].orderNumber);
+                  setIsTrackingOpen(true);
+                }}
+                className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1 rounded-lg shadow transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>تتبع هذا الطلب مباشرة 🔍</span>
+              </button>
+              <button
+                onClick={() => setShowRecentBanner(false)}
+                className="text-slate-400 hover:text-white p-1 text-xs cursor-pointer"
+                title="إخفاء الشريط"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="flex-1">

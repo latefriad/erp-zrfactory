@@ -49,11 +49,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const res = await fetchApi<{ user: AuthUser }>('/auth/me');
         setUser(res.user);
-      } catch (err) {
-        console.warn('Session expired or invalid, clearing credentials.');
-        localStorage.removeItem('zr_auth_token');
-        setToken(null);
-        setUser(null);
+      } catch (err: any) {
+        const isAuthError =
+          err?.message?.includes('401') ||
+          err?.message?.toLowerCase().includes('token') ||
+          err?.message?.toLowerCase().includes('unauthorized') ||
+          err?.message?.toLowerCase().includes('non autorisé');
+
+        if (isAuthError) {
+          console.warn('Session expired or invalid, clearing credentials.');
+          localStorage.removeItem('zr_auth_token');
+          setToken(null);
+          setUser(null);
+        } else {
+          console.warn('Network or server unreachable, retaining token for retry:', err);
+        }
       } finally {
         setIsLoading(false);
       }

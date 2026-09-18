@@ -71,6 +71,7 @@ export const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<OrderStats | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -137,6 +138,7 @@ export const OrdersPage: React.FC = () => {
   const loadData = async () => {
     try {
       setIsLoading(true);
+      setLoadError(null);
       const params = new URLSearchParams();
       if (selectedStatus !== 'ALL') params.append('status', selectedStatus);
       if (selectedPaymentStatus !== 'ALL') params.append('paymentStatus', selectedPaymentStatus);
@@ -148,7 +150,7 @@ export const OrdersPage: React.FC = () => {
         fetchApi<{ couriers: CourierConfiguration[] }>('/shipping/couriers').catch(() => ({ couriers: [] })),
       ]);
 
-      setOrders(ordersRes.orders);
+      setOrders(ordersRes.orders || []);
       setStats(statsRes.stats);
       if (couriersRes.couriers && couriersRes.couriers.length > 0) {
         setCouriers(couriersRes.couriers);
@@ -159,6 +161,7 @@ export const OrdersPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to load orders data:', err);
+      setLoadError(err.message || 'Erreur de connexion au serveur.');
     } finally {
       setIsLoading(false);
     }
@@ -510,6 +513,22 @@ export const OrdersPage: React.FC = () => {
           </button>
         )}
       </div>
+
+      {/* Connection / Load Error Banner */}
+      {loadError && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-xl flex items-center justify-between gap-4 shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-2.5 text-sm font-medium">
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            <span>{loadError}</span>
+          </div>
+          <button
+            onClick={() => loadData()}
+            className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors shrink-0"
+          >
+            Réessayer
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards Row */}
       {stats && (

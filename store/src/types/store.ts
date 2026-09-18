@@ -110,6 +110,7 @@ export interface CartItem {
   quantity: number;
   notes?: string;
   imageUrl?: string;
+  customizationTechnique?: 'DTF' | 'BRODERIE';
 }
 
 export interface StoreOrderPayload {
@@ -122,6 +123,7 @@ export interface StoreOrderPayload {
   deliveryOption?: 'HOME' | 'STOP_DESK';
   deliveryCompany?: string;
   deliveryFee?: number;
+  customizationTechnique?: 'DTF' | 'BRODERIE';
   notes?: string;
   items: Array<{
     productId: string;

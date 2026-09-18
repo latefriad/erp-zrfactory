@@ -385,7 +385,8 @@ export function seedDatabase(db: Database.Database): void {
     }
 
     // 10. Seed Sample Print-on-Demand Orders
-    if (!isClean) {
+    const existingOrdersCount = (db.prepare('SELECT COUNT(*) as count FROM orders').get() as { count: number })?.count || 0;
+    if (!isClean || existingOrdersCount === 0) {
       const sampleOrders = [
       {
         id: 'ord-seed-001',

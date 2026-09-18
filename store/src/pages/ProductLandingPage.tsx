@@ -104,6 +104,10 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
     return bundleOffers.find(b => b.id === selectedBundleId) || bundleOffers[0];
   }, [bundleOffers, selectedBundleId]);
 
+  // Customization technique state: DTF vs Broderie (+10 pieces minimum, price on call)
+  const [customizationTechnique, setCustomizationTechnique] = useState<'DTF' | 'BRODERIE'>('DTF');
+  const [broderieQuantity, setBroderieQuantity] = useState<number>(10);
+
   // Form states
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -142,8 +146,12 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
 
   // Price calculations
   const unitBasePrice = (product.sellingPrice || 0) + (selectedVariant?.additionalPrice || 0);
-  const totalItemsCount = hasBundles ? activeBundle.quantity : standardQuantity;
-  const totalDiscount = hasBundles ? (activeBundle.discountPerItem * totalItemsCount) : 0;
+  const totalItemsCount = customizationTechnique === 'BRODERIE'
+    ? Math.max(10, broderieQuantity)
+    : (hasBundles ? activeBundle.quantity : standardQuantity);
+  const totalDiscount = (customizationTechnique === 'DTF' && hasBundles)
+    ? (activeBundle.discountPerItem * totalItemsCount)
+    : 0;
   const productsSubtotal = (unitBasePrice * totalItemsCount) - totalDiscount;
   const totalOrderAmount = productsSubtotal + deliveryFee;
 
@@ -204,10 +212,16 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
         deliveryOption,
         deliveryCompany: 'Yalidine Express',
         deliveryFee,
+        customizationTechnique,
         notes: [
           notes.trim(),
           `[طلب مباشر من صفحة المنتج]`,
-          hasBundles ? `العرض: ${activeBundle.label}` : `الكمية: ${standardQuantity} قطعة`,
+          customizationTechnique === 'BRODERIE'
+            ? `[نوع التخصيص: تطريز صناعي فاخر Broderie (+10 قطع) - السعر يُحدد هاتفياً 📞]`
+            : `[نوع التخصيص: طباعة حرارية DTF HD]`,
+          customizationTechnique === 'BRODERIE'
+            ? `الكمية: ${totalItemsCount} قطعة (تطريز)`
+            : (hasBundles ? `العرض: ${activeBundle.label}` : `الكمية: ${standardQuantity} قطعة`),
           selectedVariant ? `المقاس/اللون: ${selectedVariant.name}` : ''
         ].filter(Boolean).join(' - '),
         items: [
@@ -215,7 +229,12 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
             productId: product.id,
             variantId: selectedVariant?.id || null,
             quantity: totalItemsCount,
-            notes: selectedVariant ? `الخيار: ${selectedVariant.name}` : undefined,
+            notes: [
+              selectedVariant ? `الخيار: ${selectedVariant.name}` : '',
+              customizationTechnique === 'BRODERIE'
+                ? 'تطريز صناعي (+10 قطع - السعر يُحدد هاتفياً)'
+                : 'طباعة حرارية DTF'
+            ].filter(Boolean).join(' | '),
           }
         ]
       };
@@ -498,8 +517,155 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
               </div>
             )}
 
-            {hasBundles ? (
-              /* Special Bundle Offers (اختر ووفر - ZimamShops Style) */
+            {/* ============================================================ */}
+            {/* CUSTOMIZATION TECHNIQUE PICKER: DTF vs BRODERIE (+10 PCS) */}
+            {/* ============================================================ */}
+            <div className="space-y-2.5 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-black text-slate-900 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  <span>طريقة التخصيص المطلوبة:</span>
+                </label>
+                <span className="text-[11px] font-bold text-slate-500">
+                  {customizationTechnique === 'DTF' ? 'طباعة حرارية DTF' : 'تطريز صناعي فاخر'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {/* Option 1: DTF */}
+                <button
+                  type="button"
+                  onClick={() => setCustomizationTechnique('DTF')}
+                  className={`p-3.5 rounded-2xl border-2 text-right transition-all flex flex-col justify-between cursor-pointer ${
+                    customizationTechnique === 'DTF'
+                      ? 'border-blue-600 bg-blue-50/50 shadow-md ring-2 ring-blue-600/20'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        customizationTechnique === 'DTF' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                      }`}>
+                        {customizationTechnique === 'DTF' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                      <span className="text-xs font-extrabold text-slate-900">طباعة حرارية DTF</span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                      من 1 قطعة
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                    طباعة رقمية عالية الدقة بالألوان الكاملة. مناسبة لأي كمية، السعر مشمول بالكامل.
+                  </p>
+                </button>
+
+                {/* Option 2: Broderie (+10 pcs, price on call) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomizationTechnique('BRODERIE');
+                    if (broderieQuantity < 10) setBroderieQuantity(10);
+                  }}
+                  className={`p-3.5 rounded-2xl border-2 text-right transition-all flex flex-col justify-between relative cursor-pointer ${
+                    customizationTechnique === 'BRODERIE'
+                      ? 'border-amber-500 bg-amber-50/50 shadow-md ring-2 ring-amber-500/20'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="absolute -top-2.5 left-4 bg-amber-500 text-slate-950 font-black text-[10px] px-2.5 py-0.5 rounded-full shadow">
+                    +10 قطع فقط ⭐
+                  </div>
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        customizationTechnique === 'BRODERIE' ? 'border-amber-600 bg-amber-600' : 'border-slate-300'
+                      }`}>
+                        {customizationTechnique === 'BRODERIE' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+                      <span className="text-xs font-extrabold text-slate-900">تطريز صناعي فاخر (Broderie)</span>
+                    </div>
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    <div className="text-[11px] font-extrabold text-amber-800 flex items-center gap-1">
+                      <Phone className="w-3.5 h-3.5 text-amber-600" />
+                      <span>السعر نحدده معك هاتفياً (Prix par appel)</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-tight">
+                      خيوط فاخرة تدوم طويلاً. متاح للطلبيات من 10 قطع فما فوق. نتصل بك لتحديد سعر التطريز بدقة حسب اللوغو.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Quantity / Offers Selector Based on Technique */}
+            {customizationTechnique === 'BRODERIE' ? (
+              /* Broderie Bulk Quantity Picker (+10 pieces) */
+              <div className="space-y-3 bg-amber-50/40 p-4 rounded-2xl border-2 border-amber-300 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                    <ShoppingBag className="w-4 h-4 text-amber-600" />
+                    <span>كمية التطريز المطلوبة (الحد الأدنى 10 قطع):</span>
+                  </label>
+                  <span className="text-xs font-black text-amber-900 bg-amber-100 px-2.5 py-1 rounded-full border border-amber-300">
+                    {broderieQuantity} قطعة
+                  </span>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex flex-wrap gap-2">
+                  {[10, 15, 20, 30, 50, 100].map(qty => (
+                    <button
+                      key={qty}
+                      type="button"
+                      onClick={() => setBroderieQuantity(qty)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                        broderieQuantity === qty
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-sm scale-105'
+                          : 'bg-white text-slate-700 border-amber-200 hover:border-amber-400'
+                      }`}
+                    >
+                      {qty} قطعة
+                    </button>
+                  ))}
+                </div>
+
+                {/* Stepper & Pricing Note */}
+                <div className="flex items-center gap-3 pt-1">
+                  <div className="inline-flex items-center bg-white rounded-xl p-1 border border-amber-300 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setBroderieQuantity(prev => Math.max(10, prev - 1))}
+                      className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center font-black text-amber-900 hover:bg-amber-100 active:scale-95 transition text-base cursor-pointer"
+                      title="تقليل الكمية"
+                    >
+                      -
+                    </button>
+                    <span className="w-16 text-center font-black text-slate-900 text-base select-none">
+                      {broderieQuantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setBroderieQuantity(prev => prev + 1)}
+                      className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center font-black text-amber-900 hover:bg-amber-100 active:scale-95 transition text-base cursor-pointer"
+                      title="زيادة الكمية"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div className="text-[11px] text-amber-950 leading-tight">
+                    <span className="font-bold block">
+                      سعر الملابس الأساسي: {(unitBasePrice * broderieQuantity).toLocaleString('fr-DZ')} د.ج
+                    </span>
+                    <span className="text-slate-500">
+                      + تكلفة التطريز تُحدد هاتفياً بحسب تفاصيل الشعار
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : hasBundles ? (
+              /* Special Bundle Offers for DTF (اختر ووفر - ZimamShops Style) */
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black text-slate-900 flex items-center gap-1.5">
@@ -762,11 +928,25 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                 {/* Live Order Pricing Calculation */}
                 <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2 text-xs">
                   <div className="flex justify-between text-slate-600">
-                    <span>ثمن المنتجات ({hasBundles ? activeBundle.label : `${standardQuantity} قطع`}):</span>
+                    <span>
+                      {customizationTechnique === 'BRODERIE'
+                        ? `ثمن الملابس الأساسي (${totalItemsCount} قطعة):`
+                        : `ثمن المنتجات (${hasBundles ? activeBundle.label : `${standardQuantity} قطع`}):`}
+                    </span>
                     <span className="font-bold">{(unitBasePrice * totalItemsCount).toLocaleString('fr-DZ')} د.ج</span>
                   </div>
 
-                  {hasBundles && totalDiscount > 0 && (
+                  {customizationTechnique === 'BRODERIE' && (
+                    <div className="flex justify-between text-amber-900 font-bold bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200 items-center">
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3.5 h-3.5 text-amber-600" />
+                        <span>تكلفة التطريز الصناعي:</span>
+                      </span>
+                      <span className="text-amber-800">نحددها معك هاتفياً (Prix par appel) 📞</span>
+                    </div>
+                  )}
+
+                  {customizationTechnique === 'DTF' && hasBundles && totalDiscount > 0 && (
                     <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
                       <span>وفرت مع هذا العرض:</span>
                       <span>-{totalDiscount.toLocaleString('fr-DZ')} د.ج</span>
@@ -781,12 +961,17 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                   </div>
 
                   <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline">
-                    <span className="font-black text-slate-900 text-sm">المجموع الكلي المطلوب:</span>
+                    <span className="font-black text-slate-900 text-sm">المجموع عند الاستلام:</span>
                     <div className="text-right">
                       <span className="text-xl font-black text-blue-600">
                         {totalOrderAmount.toLocaleString('fr-DZ')}
                       </span>
                       <span className="text-xs font-bold text-blue-900 mr-1">د.ج</span>
+                      {customizationTechnique === 'BRODERIE' && (
+                        <span className="block text-[10px] text-amber-700 font-bold">
+                          (+ قيمة التطريز المتفق عليها هاتفياً)
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -795,16 +980,26 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-base sm:text-lg shadow-xl shadow-emerald-600/30 hover:shadow-2xl transition-all duration-200 active:scale-[0.99] flex flex-col items-center justify-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed group cursor-pointer"
+                  className={`w-full py-4 px-6 rounded-2xl text-white font-black text-base sm:text-lg shadow-xl transition-all duration-200 active:scale-[0.99] flex flex-col items-center justify-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed group cursor-pointer ${
+                    customizationTechnique === 'BRODERIE'
+                      ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 shadow-amber-600/30'
+                      : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-600/30'
+                  }`}
                 >
                   <div className="flex items-center gap-2">
                     <Truck className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                     <span>
-                      {isSubmitting ? 'جاري تسجيل طلبك...' : 'اضغط هنا للطلب الآن - الدفع عند الاستلام 🚚'}
+                      {isSubmitting
+                        ? 'جاري تسجيل طلبك...'
+                        : customizationTechnique === 'BRODERIE'
+                          ? `طلب تطريز (${totalItemsCount} قطعة) - وسنتصل بك لتحديد السعر 📞`
+                          : 'اضغط هنا للطلب الآن - الدفع عند الاستلام 🚚'}
                     </span>
                   </div>
-                  <span className="text-[11px] font-medium text-emerald-100">
-                    معاينة المنتج قبل الدفع - توصيل سريع لجميع الولايات
+                  <span className="text-[11px] font-medium text-white/90">
+                    {customizationTechnique === 'BRODERIE'
+                      ? 'سيتصل بك مسؤول ورشة التطريز فوراً لتأكيد التفاصيل والتكلفة'
+                      : 'معاينة المنتج قبل الدفع - توصيل سريع لجميع الولايات'}
                   </span>
                 </button>
 

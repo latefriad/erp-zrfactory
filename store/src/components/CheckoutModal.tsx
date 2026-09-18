@@ -26,6 +26,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [address, setAddress] = useState('');
   const [deliveryOption, setDeliveryOption] = useState<'HOME' | 'STOP_DESK'>('HOME');
   const [notes, setNotes] = useState('');
+  const [customizationTechnique, setCustomizationTechnique] = useState<'DTF' | 'BRODERIE'>('DTF');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -33,6 +34,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const selectedWilaya = useMemo(() => {
     return ALGERIA_WILAYAS.find(w => w.code === selectedWilayaCode) || ALGERIA_WILAYAS[15];
   }, [selectedWilayaCode]);
+
+  // Total pieces in cart
+  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
   // Dynamic delivery fee based on Algerian geography & Yalidine standards
   const deliveryFee = useMemo(() => {
@@ -75,6 +79,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
+    if (customizationTechnique === 'BRODERIE' && totalQuantity < 10) {
+      setErrorMessage(`⚠️ التطريز الصناعي الفاخر (Broderie) متاح فقط للطلبيات الجماعية ابتداءً من 10 قطع فما فوق. إجمالي قطع سلتك الحالية هو ${totalQuantity} قطع فقط. يرجى زيادة كمية السلة إلى 10 قطع على الأقل، أو اختيار طباعة حرارية DTF.`);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -88,12 +97,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         deliveryOption,
         deliveryCompany: 'Yalidine Express',
         deliveryFee,
-        notes: notes.trim() || undefined,
+        customizationTechnique,
+        notes: [
+          notes.trim(),
+          customizationTechnique === 'BRODERIE'
+            ? `[نوع التخصيص: تطريز صناعي فاخر Broderie (+10 قطع) - السعر يُحدد هاتفياً 📞]`
+            : `[نوع التخصيص: طباعة حرارية DTF HD]`
+        ].filter(Boolean).join(' - ') || undefined,
         items: items.map(item => ({
           productId: item.productId,
           variantId: item.variantId || null,
           quantity: item.quantity,
-          notes: item.notes,
+          notes: [
+            item.notes,
+            customizationTechnique === 'BRODERIE' ? 'تطريز (+10 قطع)' : 'طباعة DTF'
+          ].filter(Boolean).join(' | '),
         })),
       };
 
@@ -173,6 +191,71 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 />
               </div>
             </div>
+          </div>
+
+          {/* Customization Technique Selection */}
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                طريقة التخصيص والطباعة
+              </h4>
+              <span className="text-[11px] font-bold text-slate-500">
+                {customizationTechnique === 'DTF' ? 'طباعة DTF' : 'تطريز (+10 قطع)'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Option 1: DTF */}
+              <button
+                type="button"
+                onClick={() => setCustomizationTechnique('DTF')}
+                className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between cursor-pointer ${
+                  customizationTechnique === 'DTF'
+                    ? 'border-blue-600 bg-blue-50/70 text-blue-950 shadow-sm ring-1 ring-blue-600'
+                    : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold">طباعة حرارية DTF</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                    من 1 قطعة
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-500 mt-1">
+                  طباعة رقمية عالية الدقة مشمولة في السعر
+                </span>
+              </button>
+
+              {/* Option 2: Broderie */}
+              <button
+                type="button"
+                onClick={() => setCustomizationTechnique('BRODERIE')}
+                className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between cursor-pointer relative ${
+                  customizationTechnique === 'BRODERIE'
+                    ? 'border-amber-500 bg-amber-50/70 text-amber-950 shadow-sm ring-1 ring-amber-500'
+                    : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold">تطريز صناعي فاخر (Broderie)</span>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500 text-slate-950">
+                    +10 قطع فقط ⭐
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-amber-800 mt-1">
+                  السعر نحدده معك هاتفياً (Prix par appel 📞)
+                </span>
+              </button>
+            </div>
+
+            {customizationTechnique === 'BRODERIE' && totalQuantity < 10 && (
+              <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-[11px] text-amber-900 leading-relaxed font-medium flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  تنبيه: سلتك تحتوي على <b>{totalQuantity} قطع</b> فقط. التطريز متاح للطلبيات ابتداءً من 10 قطع. يمكنك زيادة كمية السلة أو اختيار طباعة DTF.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Shipping & Algerian Wilayas */}
@@ -292,11 +375,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <span>تكلفة التوصيل إلى ({selectedWilaya.arName}):</span>
               <span className="font-bold text-blue-600">{deliveryFee.toLocaleString('fr-DZ')} د.ج</span>
             </div>
+
+            {customizationTechnique === 'BRODERIE' && (
+              <div className="flex items-center justify-between text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl border border-amber-200 font-bold">
+                <span>تكلفة التطريز الصناعي:</span>
+                <span>نحددها معك هاتفياً (Prix par appel 📞)</span>
+              </div>
+            )}
+
             <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
               <span className="font-extrabold text-slate-900 text-sm">المبلغ الإجمالي للدفع:</span>
-              <span className="text-xl font-black text-blue-600">
-                {totalAmount.toLocaleString('fr-DZ')} <span className="text-xs font-bold">د.ج</span>
-              </span>
+              <div className="text-right">
+                <span className="text-xl font-black text-blue-600">
+                  {totalAmount.toLocaleString('fr-DZ')} <span className="text-xs font-bold">د.ج</span>
+                </span>
+                {customizationTechnique === 'BRODERIE' && (
+                  <span className="block text-[10px] text-amber-700 font-bold">
+                    (+ قيمة التطريز المتفق عليها هاتفياً)
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </form>
