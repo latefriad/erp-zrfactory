@@ -3,7 +3,7 @@ import { fetchApi } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { formatCurrency, formatDate } from '../lib/formatters';
-import { Order, OrderStatus, PaymentStatus, ALGERIA_WILAYAS } from '@zr-erp/shared';
+import { Order, OrderStatus, PaymentStatus, ALGERIA_WILAYAS, CourierConfiguration } from '@zr-erp/shared';
 import {
   ShoppingBag,
   Plus,
@@ -22,7 +22,9 @@ import {
   Phone,
   Trash2,
   TrendingUp,
-  CreditCard
+  CreditCard,
+  Zap,
+  Loader2
 } from 'lucide-react';
 
 interface OrderStats {
@@ -75,6 +77,13 @@ export const OrdersPage: React.FC = () => {
 
   // Selected Order for Detail Modal
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+
+  // Transfer to Courier State
+  const [couriers, setCouriers] = useState<CourierConfiguration[]>([]);
+  const [transferModalOrder, setTransferModalOrder] = useState<Order | null>(null);
+  const [transferCourierKey, setTransferCourierKey] = useState<string>('elogistia');
+  const [isTransferring, setIsTransferring] = useState<boolean>(false);
+  const [transferFeedback, setTransferFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // New Order Modal State
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState<boolean>(false);
@@ -133,17 +142,86 @@ export const OrdersPage: React.FC = () => {
       if (selectedPaymentStatus !== 'ALL') params.append('paymentStatus', selectedPaymentStatus);
       if (searchQuery) params.append('search', searchQuery);
 
-      const [ordersRes, statsRes] = await Promise.all([
+      const [ordersRes, statsRes, couriersRes] = await Promise.all([
         fetchApi<{ orders: Order[] }>(`/orders?${params.toString()}`),
         fetchApi<{ stats: OrderStats }>('/orders/stats'),
+        fetchApi<{ couriers: CourierConfiguration[] }>('/shipping/couriers').catch(() => ({ couriers: [] })),
       ]);
 
       setOrders(ordersRes.orders);
       setStats(statsRes.stats);
+      if (couriersRes.couriers && couriersRes.couriers.length > 0) {
+        setCouriers(couriersRes.couriers);
+        const def = couriersRes.couriers.find(c => c.isDefault && c.isActive) || couriersRes.couriers.find(c => c.isActive) || couriersRes.couriers[0];
+        if (def) {
+          setTransferCourierKey(def.courierKey);
+        }
+      }
     } catch (err: any) {
       console.error('Failed to load orders data:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleOpenTransferModal = (order: Order) => {
+    setTransferModalOrder(order);
+    setTransferFeedback(null);
+    if (order.deliveryCompany) {
+      const match = couriers.find(c => order.deliveryCompany?.toLowerCase().includes(c.courierKey.toLowerCase()) || c.name.toLowerCase().includes(order.deliveryCompany?.toLowerCase() || ''));
+      if (match) {
+        setTransferCourierKey(match.courierKey);
+        return;
+      }
+    }
+    const def = couriers.find(c => c.isDefault && c.isActive) || couriers.find(c => c.isActive) || couriers[0];
+    if (def) {
+      setTransferCourierKey(def.courierKey);
+    }
+  };
+
+  const handleConfirmTransfer = async () => {
+    if (!transferModalOrder) return;
+    try {
+      setIsTransferring(true);
+      setTransferFeedback(null);
+
+      const res = await fetchApi<{
+        success: boolean;
+        trackingNumber: string;
+        courier: string;
+        labelUrl?: string;
+      }>('/shipping/dispatch-order', {
+        method: 'POST',
+        body: JSON.stringify({
+          orderId: transferModalOrder.id,
+          courierKey: transferCourierKey,
+        }),
+      });
+
+      setTransferFeedback({
+        type: 'success',
+        message: language === 'ar'
+          ? `تم تحويل الطلب ${transferModalOrder.orderNumber} بنجاح إلى شركة ${res.courier}! رقم التتبع: ${res.trackingNumber}`
+          : `Commande ${transferModalOrder.orderNumber} transférée avec succès vers ${res.courier} ! N° Suivi : ${res.trackingNumber}`
+      });
+
+      await loadData();
+      if (activeOrder && activeOrder.id === transferModalOrder.id) {
+        openOrderDetail(transferModalOrder.id);
+      }
+
+      setTimeout(() => {
+        setTransferModalOrder(null);
+        setTransferFeedback(null);
+      }, 2000);
+    } catch (err: any) {
+      setTransferFeedback({
+        type: 'error',
+        message: err.message || 'Erreur lors du transfert de la commande vers la société de livraison.'
+      });
+    } finally {
+      setIsTransferring(false);
     }
   };
 
@@ -620,20 +698,54 @@ export const OrdersPage: React.FC = () => {
                       </td>
 
                       <td className="px-5 py-4 text-center">
-                        {nextAction ? (
-                          <button
-                            onClick={() => handleStatusAdvance(ord.id, nextAction.next)}
-                            className={`px-3 py-1.5 text-xs font-bold text-white rounded-lg transition shadow-xs ${nextAction.color}`}
-                          >
-                            {nextAction.label}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-slate-400">-</span>
-                        )}
+                        <div className="flex flex-col items-center gap-1.5">
+                          {ord.trackingNumber ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 inline-flex items-center gap-1 font-mono">
+                              <Truck className="w-3 h-3 text-blue-600" />
+                              <span>{ord.trackingNumber}</span>
+                            </span>
+                          ) : (
+                            canManage && ord.status !== OrderStatus.CANCELLED && ord.status !== OrderStatus.DELIVERED && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenTransferModal(ord);
+                                }}
+                                className="px-2.5 py-1.5 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs transition inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                                title="Transférer la commande à la société de livraison via dzship"
+                              >
+                                <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                                <span>{language === 'ar' ? 'تحويل للتوصيل' : 'Transférer'}</span>
+                              </button>
+                            )
+                          )}
+
+                          {nextAction && (
+                            <button
+                              onClick={() => handleStatusAdvance(ord.id, nextAction.next)}
+                              className={`px-2.5 py-1 text-[11px] font-semibold text-white rounded-lg transition shadow-xs ${nextAction.color}`}
+                            >
+                              {nextAction.label}
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       <td className="px-5 py-4 text-center">
                         <div className="flex items-center justify-center gap-1">
+                          {!ord.trackingNumber && canManage && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenTransferModal(ord);
+                              }}
+                              className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer"
+                              title={language === 'ar' ? 'تحويل إلى شركة التوصيل' : 'Transférer à la société de livraison'}
+                            >
+                              <Zap className="w-4 h-4 fill-amber-500 text-amber-500" />
+                            </button>
+                          )}
                           <button
                             onClick={() => openOrderDetail(ord.id)}
                             className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
@@ -714,10 +826,23 @@ export const OrdersPage: React.FC = () => {
                   <div className="text-slate-600 mt-1">
                     {activeOrder.shippingAddress || 'Adresse standard'}
                   </div>
-                  {activeOrder.trackingNumber && (
-                    <div className="text-slate-600 mt-1 font-mono">
-                      Suivi : <span className="font-bold text-blue-600">{activeOrder.trackingNumber}</span> ({activeOrder.deliveryCompany})
+                  {activeOrder.trackingNumber ? (
+                    <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 font-mono text-xs">
+                      <Truck className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{activeOrder.trackingNumber}</span>
+                      {activeOrder.deliveryCompany && <span className="text-blue-500 font-sans text-[11px]">({activeOrder.deliveryCompany})</span>}
                     </div>
+                  ) : (
+                    canManage && activeOrder.status !== OrderStatus.CANCELLED && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenTransferModal(activeOrder)}
+                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg text-xs shadow-xs transition cursor-pointer"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                        <span>{language === 'ar' ? 'تحويل للتوصيل (dzship)' : 'Transférer au livreur (dzship)'}</span>
+                      </button>
+                    )
                   )}
                 </div>
               </div>
@@ -1166,6 +1291,155 @@ export const OrdersPage: React.FC = () => {
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2"
               >
                 {isDeleting ? 'Suppression...' : 'Supprimer définitivement'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer to Courier (dzship) Modal */}
+      {transferModalOrder && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                  <Zap className="w-5 h-5 fill-amber-500 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {language === 'ar' ? 'تحويل الطلب إلى شركة التوصيل' : 'Transférer au Livreur (dzship)'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    Commande #{transferModalOrder.orderNumber}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isTransferring) {
+                    setTransferModalOrder(null);
+                    setTransferFeedback(null);
+                  }
+                }}
+                disabled={isTransferring}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 text-xs">
+              {/* Recipient / Order Recap */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                <div className="flex justify-between items-center text-slate-600">
+                  <span className="font-semibold">{language === 'ar' ? 'العميل :' : 'Destinataire :'}</span>
+                  <span className="font-bold text-slate-900">{transferModalOrder.customer?.name}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600">
+                  <span className="font-semibold">{language === 'ar' ? 'الهاتف :' : 'Téléphone :'}</span>
+                  <span className="font-mono text-slate-900">{transferModalOrder.customer?.phone}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-600">
+                  <span className="font-semibold">{language === 'ar' ? 'الوجهة :' : 'Destination :'}</span>
+                  <span className="text-slate-900">
+                    {transferModalOrder.shippingWilaya} {transferModalOrder.shippingCommune ? `(${transferModalOrder.shippingCommune})` : ''}
+                  </span>
+                </div>
+                <div className="border-t border-slate-200 pt-2 flex justify-between items-center">
+                  <span className="font-bold text-slate-700">{language === 'ar' ? 'المبلغ المستحق (COD) :' : 'Montant COD à encaisser :'}</span>
+                  <span className="font-black text-blue-600 text-sm font-mono">
+                    {formatCurrency(transferModalOrder.total, language)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Courier Selector */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-700 block">
+                  {language === 'ar' ? 'اختر شركة التوصيل (Couriers dzship)' : 'Société de Livraison dzship'}
+                </label>
+                <select
+                  value={transferCourierKey}
+                  onChange={(e) => setTransferCourierKey(e.target.value)}
+                  disabled={isTransferring}
+                  className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {couriers.map((c) => (
+                    <option key={c.courierKey} value={c.courierKey}>
+                      {c.name} ({c.courierKey}) {c.isDefault ? '★ [Par Défaut]' : ''}
+                    </option>
+                  ))}
+                  {couriers.length === 0 && (
+                    <>
+                      <option value="elogistia">Elogistia</option>
+                      <option value="zrexpress">ZR Express</option>
+                      <option value="zrexpressnew">ZR Express (New)</option>
+                      <option value="ecomdelivery">Ecom Delivery</option>
+                      <option value="yalidine">Yalidine Express</option>
+                      <option value="sandbox">Sandbox Test Mode</option>
+                    </>
+                  )}
+                </select>
+                <p className="text-[11px] text-slate-500">
+                  {language === 'ar'
+                    ? 'سيتم تسجيل الطرد مباشرة في لوحة تحكم شركة التوصيل وتوليد رقم التتبع الرسمي.'
+                    : 'Le colis sera créé directement via l\'API dzship chez le transporteur sélectionné avec bordereau & tracking.'}
+                </p>
+              </div>
+
+              {/* Transfer Feedback */}
+              {transferFeedback && (
+                <div
+                  className={`p-3 rounded-xl border flex items-start gap-2.5 text-xs ${
+                    transferFeedback.type === 'success'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-red-50 border-red-200 text-red-800'
+                  }`}
+                >
+                  {transferFeedback.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  )}
+                  <span className="font-medium">{transferFeedback.message}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setTransferModalOrder(null);
+                  setTransferFeedback(null);
+                }}
+                disabled={isTransferring}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl transition cursor-pointer"
+              >
+                {language === 'ar' ? 'إلغاء' : 'Annuler'}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmTransfer}
+                disabled={isTransferring}
+                className="px-5 py-2 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition inline-flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isTransferring ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>{language === 'ar' ? 'جاري التحويل...' : 'Transfert en cours...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                    <span>{language === 'ar' ? 'تأكيد الإرسال للشركة' : 'Confirmer le Transfert'}</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
