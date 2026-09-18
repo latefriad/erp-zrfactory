@@ -82,6 +82,8 @@ export const ProductsPage: React.FC = () => {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [variantToDelete, setVariantToDelete] = useState<{ productId: string; variantId: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [isSubmittingProd, setIsSubmittingProd] = useState<boolean>(false);
 
   // New product form
   const [newProd, setNewProd] = useState({
@@ -185,59 +187,126 @@ export const ProductsPage: React.FC = () => {
     }
   };
 
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>, isEditing: boolean = false) => {
+  const compressImageFile = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onerror = () => resolve('');
+      reader.onload = (e) => {
+        const img = document.createElement('img');
+        img.onerror = () => resolve(e.target?.result as string || '');
+        img.onload = () => {
+          const maxWidth = 1200;
+          const maxHeight = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(e.target?.result as string || '');
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          try {
+            const webp = canvas.toDataURL('image/webp', 0.82);
+            resolve(webp);
+          } catch {
+            const jpeg = canvas.toDataURL('image/jpeg', 0.82);
+            resolve(jpeg);
+          }
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditing: boolean = false) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach(file => {
-      if (file.size > 3 * 1024 * 1024) {
-        setNotice("L'image est trop volumineuse (max 3 Mo). Veuillez en choisir une plus légère.");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        const result = uploadEvent.target?.result as string;
-        if (result) {
+    for (const file of Array.from(files)) {
+      try {
+        const compressedBase64 = await compressImageFile(file);
+        if (compressedBase64) {
           if (isEditing) {
             setEditProd(prev => ({
               ...prev,
-              images: [...prev.images, result],
-              imageUrl: prev.imageUrl || result
+              images: [...prev.images, compressedBase64],
+              imageUrl: prev.imageUrl || compressedBase64
             }));
           } else {
             setNewProd(prev => ({
               ...prev,
-              images: [...prev.images, result],
-              imageUrl: prev.imageUrl || result
+              images: [...prev.images, compressedBase64],
+              imageUrl: prev.imageUrl || compressedBase64
             }));
           }
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (err) {
+        console.error('Error compressing image:', err);
+      }
+    }
     e.target.value = '';
   };
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    setModalError(null);
+
+    if (!newProd.name.trim()) {
+      setModalError('Veuillez renseigner le nom du produit.');
+      return;
+    }
+
+    const sku = newProd.sku.trim()
+      ? newProd.sku.trim().toUpperCase()
+      : `POD-${Date.now().toString(36).toUpperCase()}`;
+
+    setIsSubmittingProd(true);
+
     try {
+      const validComponents = (newProd.components || [])
+        .filter(c => c.name && c.name.trim().length > 0)
+        .map(c => ({
+          name: c.name.trim(),
+          type: c.type,
+          cost: Number(c.cost) || 0,
+        }));
+
       await fetchApi('/products', {
         method: 'POST',
         body: JSON.stringify({
-          name: newProd.name,
-          sku: newProd.sku,
-          description: newProd.description,
-          sellingPrice: Number(newProd.sellingPrice),
+          name: newProd.name.trim(),
+          sku,
+          description: newProd.description?.trim() || null,
+          sellingPrice: Number(newProd.sellingPrice) || 0,
           compareAtPrice: Number(newProd.compareAtPrice) || 0,
           imageUrl: newProd.images.length > 0 ? newProd.images[0] : (newProd.imageUrl || null),
           images: newProd.images,
           features: newProd.features,
-          costComponents: newProd.components,
+          costComponents: validComponents,
         }),
       });
-      setNotice(`Produit ${newProd.name} créé avec succès.`);
+
+      setNotice(`Produit "${newProd.name}" créé et publié avec succès dans le Store.`);
       setShowProductModal(false);
+      setModalError(null);
       setNewProd({
         name: '',
         sku: '',
@@ -257,11 +326,15 @@ export const ProductsPage: React.FC = () => {
       });
       loadData();
     } catch (err: any) {
-      setNotice(`Erreur: ${err.message}`);
+      console.error('Failed to create product:', err);
+      setModalError(err.message || 'Erreur lors de la création du produit. Veuillez vérifier les champs.');
+    } finally {
+      setIsSubmittingProd(false);
     }
   };
 
   const handleOpenEditProduct = (product: Product) => {
+    setModalError(null);
     setEditingProduct(product);
     setEditProd({
       name: product.name,
@@ -279,24 +352,32 @@ export const ProductsPage: React.FC = () => {
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
+    setModalError(null);
+    setIsSubmittingProd(true);
+
     try {
       await fetchApi(`/products/${editingProduct.id}`, {
         method: 'PUT',
         body: JSON.stringify({
-          name: editProd.name,
-          description: editProd.description || null,
-          sellingPrice: Number(editProd.sellingPrice),
+          name: editProd.name.trim(),
+          description: editProd.description?.trim() || null,
+          sellingPrice: Number(editProd.sellingPrice) || 0,
           compareAtPrice: Number(editProd.compareAtPrice) || 0,
           imageUrl: editProd.images.length > 0 ? editProd.images[0] : (editProd.imageUrl || null),
           images: editProd.images,
           features: editProd.features,
         }),
       });
-      setNotice(`Produit ${editProd.name} mis à jour avec succès.`);
+
+      setNotice(`Produit "${editProd.name}" mis à jour avec succès.`);
       setEditingProduct(null);
+      setModalError(null);
       loadData();
     } catch (err: any) {
-      setNotice(`Erreur: ${err.message}`);
+      console.error('Failed to update product:', err);
+      setModalError(err.message || 'Erreur lors de la mise à jour du produit.');
+    } finally {
+      setIsSubmittingProd(false);
     }
   };
 
@@ -477,7 +558,10 @@ export const ProductsPage: React.FC = () => {
           <div>
             {activeSubTab === 'products' ? (
               <button
-                onClick={() => setShowProductModal(true)}
+                onClick={() => {
+                  setModalError(null);
+                  setShowProductModal(true);
+                }}
                 className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors mb-2"
               >
                 <Plus className="w-4 h-4" />
@@ -855,6 +939,13 @@ export const ProductsPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateProduct} className="space-y-4">
+              {modalError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2 font-bold">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-600" />
+                  <span>{modalError}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Nom du Produit *</label>
@@ -1100,9 +1191,17 @@ export const ProductsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm"
+                  disabled={isSubmittingProd}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold shadow-sm flex items-center gap-2"
                 >
-                  Créer le Produit
+                  {isSubmittingProd ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Création et Publication en cours...</span>
+                    </>
+                  ) : (
+                    <span>Créer et Publier le Produit</span>
+                  )}
                 </button>
               </div>
             </form>
@@ -1132,6 +1231,12 @@ export const ProductsPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleUpdateProduct} className="space-y-4">
+              {modalError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2 font-bold">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-600" />
+                  <span>{modalError}</span>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Nom du Produit *</label>
                 <input
@@ -1328,9 +1433,17 @@ export const ProductsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm"
+                  disabled={isSubmittingProd}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold shadow-sm flex items-center gap-2"
                 >
-                  Enregistrer les Modifications
+                  {isSubmittingProd ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Enregistrement en cours...</span>
+                    </>
+                  ) : (
+                    <span>Enregistrer les Modifications</span>
+                  )}
                 </button>
               </div>
             </form>
