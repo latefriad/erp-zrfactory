@@ -66,6 +66,13 @@ export function seedDatabase(db: Database.Database): void {
         ownership_percentage: 70.0,
         initial_capital: isClean ? 0 : 700000,
         notes: 'Co-fondateur ZR Factory (70% Capital)'
+      },
+      {
+        id: 'partner-debt',
+        name: 'Crédit / Dette',
+        ownership_percentage: 0.0,
+        initial_capital: 0,
+        notes: 'Compte statutaire dédié à la couverture du crédit et apurement des dettes'
       }
     ];
 
@@ -135,6 +142,7 @@ export function seedDatabase(db: Database.Database): void {
       { key: 'delivery_default_fee', value: '600', description: 'Default shipping fee in DZD' },
       { key: 'partner_split_riad', value: '30', description: 'Pourcentage de répartition des bénéfices pour Riad (%)' },
       { key: 'partner_split_brother', value: '70', description: 'Pourcentage de répartition des bénéfices pour le frère (%)' },
+      { key: 'partner_split_debt', value: '0', description: 'Pourcentage de répartition des bénéfices pour Crédit / Dette (%)' },
     ];
 
     const insertSetting = db.prepare(`

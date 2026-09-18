@@ -338,10 +338,12 @@ describe('Phase 12: End-to-End System Integration & Lifecycle Verification', () 
     expect(dash.financials.cashBalance).toBeGreaterThan(0);
     expect(dash.financials.currency).toBe('DZD');
 
-    // Partners exist with 30/70 equity
-    expect(dash.partners.length).toBe(2);
-    expect(dash.partners[0].ownershipPercentage).toBe(30);
-    expect(dash.partners[1].ownershipPercentage).toBe(70);
+    // Partners exist with statutory equity
+    expect(dash.partners.length).toBeGreaterThanOrEqual(2);
+    const riadPartner = dash.partners.find((p: any) => p.id === 'partner-riad');
+    const brotherPartner = dash.partners.find((p: any) => p.id === 'partner-brother');
+    expect(riadPartner?.ownershipPercentage).toBe(30);
+    expect(brotherPartner?.ownershipPercentage).toBe(70);
 
     // Orders pipeline has our delivered order
     expect(dash.orders.delivered).toBeGreaterThanOrEqual(1);

@@ -70,7 +70,7 @@ describe('Database Architecture & Integrity', () => {
       ownership_percentage: number;
     }[];
 
-    expect(partners.length).toBe(2);
+    expect(partners.length).toBeGreaterThanOrEqual(2);
 
     const brother = partners.find(p => p.name === 'Brother');
     const riad = partners.find(p => p.name === 'Riad');

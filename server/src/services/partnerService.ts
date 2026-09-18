@@ -412,6 +412,8 @@ export class PartnerService {
       this.db.prepare(`UPDATE settings SET value = ?, updated_at = ? WHERE key = 'partner_split_riad'`).run(String(updatedPercentage), now);
     } else if (id === 'partner-brother' && data.ownershipPercentage !== undefined) {
       this.db.prepare(`UPDATE settings SET value = ?, updated_at = ? WHERE key = 'partner_split_brother'`).run(String(updatedPercentage), now);
+    } else if (id === 'partner-debt' && data.ownershipPercentage !== undefined) {
+      this.db.prepare(`UPDATE settings SET value = ?, updated_at = ? WHERE key = 'partner_split_debt'`).run(String(updatedPercentage), now);
     }
 
     this.logAudit({

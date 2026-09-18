@@ -128,11 +128,12 @@ export const SettingsPage: React.FC = () => {
     setSettingsNotice(null);
 
     try {
-      const keysToSave = ['company_name', 'currency', 'default_delivery_fee', 'partner_split_riad', 'partner_split_brother'];
+      const keysToSave = ['company_name', 'currency', 'default_delivery_fee', 'partner_split_riad', 'partner_split_brother', 'partner_split_debt'];
       const riadSplit = parseFloat(settingsMap['partner_split_riad'] || '30');
       const brotherSplit = parseFloat(settingsMap['partner_split_brother'] || '70');
+      const debtSplit = parseFloat(settingsMap['partner_split_debt'] || '0');
 
-      if (isNaN(riadSplit) || isNaN(brotherSplit) || riadSplit < 0 || brotherSplit < 0) {
+      if (isNaN(riadSplit) || isNaN(brotherSplit) || isNaN(debtSplit) || riadSplit < 0 || brotherSplit < 0 || debtSplit < 0) {
         setSettingsNotice({
           type: 'error',
           message: 'Les quotes-parts des associés doivent être des nombres positifs.',
@@ -141,10 +142,10 @@ export const SettingsPage: React.FC = () => {
         return;
       }
 
-      if (Math.round((riadSplit + brotherSplit) * 100) / 100 !== 100) {
+      if (Math.round((riadSplit + brotherSplit + debtSplit) * 100) / 100 !== 100) {
         setSettingsNotice({
           type: 'error',
-          message: `La somme des quotes-parts doit être exactement égale à 100% (Actuellement : ${riadSplit + brotherSplit}%).`,
+          message: `La somme des quotes-parts doit être exactement égale à 100% (Actuellement : ${Math.round((riadSplit + brotherSplit + debtSplit) * 100) / 100}%).`,
         });
         setSavingSettings(false);
         return;
@@ -177,7 +178,8 @@ export const SettingsPage: React.FC = () => {
 
   const riadPct = parseFloat(settingsMap['partner_split_riad'] || '30') || 0;
   const brotherPct = parseFloat(settingsMap['partner_split_brother'] || '70') || 0;
-  const totalSplit = Math.round((riadPct + brotherPct) * 100) / 100;
+  const debtPct = parseFloat(settingsMap['partner_split_debt'] || '0') || 0;
+  const totalSplit = Math.round((riadPct + brotherPct + debtPct) * 100) / 100;
 
   return (
     <div className="space-y-6">
@@ -365,7 +367,7 @@ export const SettingsPage: React.FC = () => {
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
-                      {language === 'ar' ? 'توزيع الأرباح القانوني (Riad / Frère)' : 'Répartition Statutaire des Bénéfices'}
+                      {language === 'ar' ? 'توزيع الأرباح القانوني (Riad / Frère / Crédit & Dettes)' : 'Répartition Statutaire des Bénéfices'}
                     </label>
                     <div className="flex items-center gap-2">
                       {totalSplit === 100 ? (
@@ -382,7 +384,7 @@ export const SettingsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Riad Input Card */}
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2 hover:border-slate-300 transition-colors">
                       <div className="flex items-center justify-between">
@@ -448,24 +450,77 @@ export const SettingsPage: React.FC = () => {
                       </div>
                       <p className="text-[11px] text-slate-400">Quote-part statutaire sur les dividendes</p>
                     </div>
+
+                    {/* Crédit / Dette Input Card */}
+                    <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-2 hover:border-amber-300 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-amber-900">
+                          {language === 'ar' ? 'الكريدي / الديون' : 'Crédit / Dette'}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                          {settingsMap['partner_split_debt'] || '0'} %
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          disabled={!isAdmin || savingSettings}
+                          value={settingsMap['partner_split_debt'] ?? '0'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSettingsMap(prev => ({
+                              ...prev,
+                              partner_split_debt: val,
+                            }));
+                          }}
+                          className="w-full px-3.5 py-2.5 bg-white border border-amber-200 rounded-xl text-sm font-semibold text-slate-900 pr-8 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 disabled:opacity-60"
+                          placeholder="0"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                          %
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-800/80">
+                        {language === 'ar' ? 'حصة مخصصة لتغطية الكريدي وتسديد الديون' : 'Quote-part statutaire allouée au crédit / dettes'}
+                      </p>
+                    </div>
                   </div>
 
                   {isAdmin && (
-                    <div className="flex items-center justify-between text-xs pt-1">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs pt-1">
                       <p className="text-slate-400">
-                        {language === 'ar' ? 'تعديل النسبة ينعكس تلقائياً على حسابات الشركاء وتوزيع الأرباح.' : 'Modifiable par l\'administrateur. S\'applique aux clôtures d\'exercices comptables et aux parts sociales.'}
+                        {language === 'ar' ? 'تعديل النسبة ينعكس تلقائياً على حسابات الشركاء وتوزيع الأرباح.' : 'Modifiable par l\'administrateur. S\'applique aux clôtures d\'exercices et comptes statutaires.'}
                       </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const r = parseFloat(settingsMap['partner_split_riad'] || '30') || 0;
-                          const b = Math.max(0, 100 - r);
-                          setSettingsMap(prev => ({ ...prev, partner_split_brother: String(b) }));
-                        }}
-                        className="text-blue-600 hover:text-blue-700 font-medium hover:underline text-[11px] whitespace-nowrap ml-2"
-                      >
-                        {language === 'ar' ? 'موازنة الشريك الثاني إلى 100%' : 'Équilibrer Frère à 100%'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const r = parseFloat(settingsMap['partner_split_riad'] || '30') || 0;
+                            const d = parseFloat(settingsMap['partner_split_debt'] || '0') || 0;
+                            const b = Math.max(0, 100 - (r + d));
+                            setSettingsMap(prev => ({ ...prev, partner_split_brother: String(b) }));
+                          }}
+                          className="text-blue-600 hover:text-blue-700 font-medium hover:underline text-[11px] whitespace-nowrap"
+                        >
+                          {language === 'ar' ? 'موازنة الشريك الثاني' : 'Équilibrer Frère'}
+                        </button>
+                        <span className="text-slate-300">•</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const r = parseFloat(settingsMap['partner_split_riad'] || '30') || 0;
+                            const b = parseFloat(settingsMap['partner_split_brother'] || '70') || 0;
+                            const d = Math.max(0, 100 - (r + b));
+                            setSettingsMap(prev => ({ ...prev, partner_split_debt: String(d) }));
+                          }}
+                          className="text-amber-600 hover:text-amber-700 font-medium hover:underline text-[11px] whitespace-nowrap"
+                        >
+                          {language === 'ar' ? 'موازنة الكريدي / الديون' : 'Équilibrer Crédit/Dette'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

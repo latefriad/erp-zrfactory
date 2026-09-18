@@ -212,7 +212,7 @@ export const AccountingPeriodsPage: React.FC = () => {
           <div>
             <h1 className="text-xl font-bold text-slate-900">Périodes Comptables & Répartition</h1>
             <p className="text-xs text-slate-500">
-              Clôtures d'exercices, calcul P&L automatique et répartition des dividendes (30% Riad / 70% Brother)
+              Clôtures d'exercices, calcul P&L automatique et répartition statutaire des dividendes
             </p>
           </div>
         </div>
@@ -721,7 +721,7 @@ export const AccountingPeriodsPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 3: DISTRIBUER LES BÉNÉFICES (30% RIAD / 70% BROTHER) */}
+      {/* MODAL 3: DISTRIBUER LES BÉNÉFICES (RÉPARTITION STATUTAIRE) */}
       {isDistributeModalOpen && periodToOperate && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">

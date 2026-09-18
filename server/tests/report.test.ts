@@ -90,8 +90,8 @@ describe('Phase 8: Financial Reports, Income Statement & Balance Sheet', () => {
         sheet.assets.totalCash + sheet.assets.inventoryValuation + sheet.assets.customerReceivables
       );
 
-      // Partner equity (Riad + Brother)
-      expect(sheet.liabilitiesAndEquity.partnerBalances).toHaveLength(2);
+      // Partner equity (Statutory partners)
+      expect(sheet.liabilitiesAndEquity.partnerBalances.length).toBeGreaterThanOrEqual(2);
       expect(sheet.liabilitiesAndEquity.totalPartnerEquity).toBeGreaterThan(0);
     });
   });

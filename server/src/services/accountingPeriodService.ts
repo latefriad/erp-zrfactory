@@ -338,7 +338,9 @@ export class AccountingPeriodService {
     const distributeTx = this.db.transaction(() => {
       for (const partner of partners) {
         const percentage = Number(partner.ownership_percentage);
+        if (percentage <= 0) continue;
         const share = Math.round((netProfit * (percentage / 100)) * 100) / 100;
+        if (share <= 0) continue;
 
         const distId = `pdist-${id}-${partner.id}`;
         const ptxId = `ptx-profit-${id}-${partner.id}`;

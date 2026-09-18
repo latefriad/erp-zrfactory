@@ -99,6 +99,23 @@ export class SystemService {
           WHERE id = 'partner-brother'
         `).run(pct, now);
       }
+    } else if (key === 'partner_split_debt') {
+      const pct = parseFloat(value);
+      if (!isNaN(pct)) {
+        const existingPartner = this.db.prepare(`SELECT id FROM partners WHERE id = 'partner-debt'`).get();
+        if (existingPartner) {
+          this.db.prepare(`
+            UPDATE partners
+            SET ownership_percentage = ?, updated_at = ?
+            WHERE id = 'partner-debt'
+          `).run(pct, now);
+        } else {
+          this.db.prepare(`
+            INSERT INTO partners (id, name, ownership_percentage, initial_capital, notes, created_at, updated_at)
+            VALUES ('partner-debt', 'Crédit / Dette', ?, 0, 'Compte statutaire dédié à la couverture du crédit et à l''apurement des dettes', ?, ?)
+          `).run(pct, now, now);
+        }
+      }
     }
 
     this.logAudit({
