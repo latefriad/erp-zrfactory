@@ -3,9 +3,30 @@ import { INITIAL_PRODUCTS } from '../data/initialProducts';
 
 const DEFAULT_PROD_API = 'https://erp-zrfactory.onrender.com';
 
-const API_BASE = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
-  : DEFAULT_PROD_API;
+const isLocal = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+function getEndpoints(pathWithQuery: string): string[] {
+  const cleanPath = pathWithQuery.startsWith('/') ? pathWithQuery : `/${pathWithQuery}`;
+  const customUrl = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : null;
+
+  if (customUrl) {
+    return [`${customUrl}${cleanPath}`, `${DEFAULT_PROD_API}${cleanPath}`];
+  }
+
+  if (isLocal) {
+    return [
+      cleanPath,
+      `http://localhost:5000${cleanPath}`,
+      `${DEFAULT_PROD_API}${cleanPath}`
+    ];
+  }
+
+  return [
+    `${DEFAULT_PROD_API}${cleanPath}`,
+    cleanPath
+  ];
+}
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -30,10 +51,8 @@ export const storeApi = {
   },
 
   async getProducts(search?: string): Promise<Product[]> {
-    const endpoints = [
-      `${API_BASE}/api/products?isActive=true${search ? `&search=${encodeURIComponent(search)}` : ''}`,
-      `/api/products?isActive=true${search ? `&search=${encodeURIComponent(search)}` : ''}`,
-    ];
+    const query = `isActive=true${search ? `&search=${encodeURIComponent(search)}` : ''}`;
+    const endpoints = getEndpoints(`/api/products?${query}`);
 
     let lastError: any = null;
 
@@ -76,13 +95,13 @@ export const storeApi = {
   },
 
   async getProductById(id: string): Promise<Product> {
-    const endpoints = [
-      `${API_BASE}/api/products/${id}`,
-      `/api/products/${id}`
-    ];
+    const endpoints = getEndpoints(`/api/products/${id}`);
     for (const endpoint of endpoints) {
       try {
-        const res = await fetch(endpoint);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(endpoint, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (res.ok) {
           const json = await res.json();
           if (json.data?.product) return json.data.product;
@@ -95,18 +114,19 @@ export const storeApi = {
   },
 
   async createStoreOrder(payload: StoreOrderPayload): Promise<any> {
-    const endpoints = [
-      `${API_BASE}/api/orders/store-order`,
-      `/api/orders/store-order`
-    ];
+    const endpoints = getEndpoints(`/api/orders/store-order`);
     let lastError = null;
     for (const endpoint of endpoints) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
         const text = await res.text();
         const json = JSON.parse(text);
         if (res.ok && json.success) {
@@ -117,16 +137,16 @@ export const storeApi = {
         }
       } catch (err: any) {
         lastError = err;
+        if (err?.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError') && err.name !== 'TypeError' && err.name !== 'AbortError') {
+          throw err;
+        }
       }
     }
     throw lastError || new Error('Erreur lors de la création de la commande');
   },
 
   async trackOrder(query: string): Promise<OrderTrackingInfo> {
-    const endpoints = [
-      `${API_BASE}/api/orders/track/${encodeURIComponent(query.trim())}`,
-      `/api/orders/track/${encodeURIComponent(query.trim())}`
-    ];
+    const endpoints = getEndpoints(`/api/orders/track/${encodeURIComponent(query.trim())}`);
     let lastError = null;
     for (const endpoint of endpoints) {
       try {

@@ -105,6 +105,9 @@ export const ProductsPage: React.FC = () => {
     discount3: 900,
     newFeatureText: '',
     newImageUrlText: '',
+    generateVariants: true,
+    selectedSizes: ['S', 'M', 'L', 'XL', 'XXL'] as string[],
+    initialStockPerSize: 20,
     components: [
       { name: 'T-Shirt Vierge', type: CostComponentType.BASE_ITEM, cost: 700 },
       { name: 'Impression DTF HD', type: CostComponentType.PRINTING, cost: 400 },
@@ -300,6 +303,14 @@ export const ProductsPage: React.FC = () => {
           cost: Number(c.cost) || 0,
         }));
 
+      const variantsToCreate = newProd.generateVariants && newProd.selectedSizes.length > 0
+        ? newProd.selectedSizes.map(size => ({
+            name: size,
+            sku: `${sku}-${size}`,
+            stockQuantity: Number(newProd.initialStockPerSize) || 20,
+          }))
+        : [];
+
       await fetchApi('/products', {
         method: 'POST',
         body: JSON.stringify({
@@ -317,6 +328,7 @@ export const ProductsPage: React.FC = () => {
             discount3: Number(newProd.discount3) || 900,
           },
           costComponents: validComponents,
+          variants: variantsToCreate,
         }),
       });
 
@@ -337,6 +349,9 @@ export const ProductsPage: React.FC = () => {
         discount3: 900,
         newFeatureText: '',
         newImageUrlText: '',
+        generateVariants: true,
+        selectedSizes: ['S', 'M', 'L', 'XL', 'XXL'],
+        initialStockPerSize: 20,
         components: [
           { name: 'T-Shirt Vierge', type: CostComponentType.BASE_ITEM, cost: 700 },
           { name: 'Impression DTF HD', type: CostComponentType.PRINTING, cost: 400 },
@@ -1253,6 +1268,83 @@ export const ProductsPage: React.FC = () => {
                       <span className="text-[10px] text-slate-500 block mt-0.5 font-medium">
                         Soit -{Math.round((newProd.discount3 || 0) / 3)} DA / pièce
                       </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Variants / Sizes Auto Generation */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Boxes className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <div>
+                      <label className="text-xs font-bold text-slate-900 block">
+                        Tailles & Déclinaisons Initiales (المقاسات والمخزون)
+                      </label>
+                      <span className="text-[11px] text-slate-500">
+                        Générer automatiquement les déclinaisons de tailles pour le Store
+                      </span>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={newProd.generateVariants}
+                      onChange={(e) => setNewProd({ ...newProd, generateVariants: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {newProd.generateVariants && (
+                  <div className="pt-2 border-t border-slate-200 space-y-2">
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-700 block mb-1">
+                        Tailles disponibles à créer :
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'].map(size => {
+                          const isSelected = newProd.selectedSizes.includes(size);
+                          return (
+                            <button
+                              type="button"
+                              key={size}
+                              onClick={() => {
+                                setNewProd(prev => ({
+                                  ...prev,
+                                  selectedSizes: isSelected
+                                    ? prev.selectedSizes.filter(s => s !== size)
+                                    : [...prev.selectedSizes, size],
+                                }));
+                              }}
+                              className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                  : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400'
+                              }`}
+                            >
+                              {size}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-1">
+                      <label className="text-[11px] font-semibold text-slate-700">
+                        Stock initial par taille :
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newProd.initialStockPerSize}
+                        onChange={(e) => setNewProd({ ...newProd, initialStockPerSize: Number(e.target.value) })}
+                        className="w-20 px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-bold text-slate-900 bg-white"
+                      />
+                      <span className="text-xs text-slate-500">pièces / taille</span>
                     </div>
                   </div>
                 )}

@@ -26,7 +26,12 @@ export class ProductService {
       WHERE product_id = ?
     `).get(productId) as { totalCost: number };
 
-    return row?.totalCost || 0;
+    if (row && row.totalCost > 0) {
+      return row.totalCost;
+    }
+
+    const prod = this.db.prepare(`SELECT base_cost FROM products WHERE id = ?`).get(productId) as any;
+    return Number(prod?.base_cost) || 0;
   }
 
   public calculateGrossProfit(sellingPrice: number, cost: number): number {
@@ -54,7 +59,9 @@ export class ProductService {
     return productRows.map(p => {
       const components = this.getCostComponents(p.id);
       const variants = this.getVariants(p.id);
-      const totalCost = components.reduce((sum, c) => sum + c.cost, 0);
+      const totalCost = components.length > 0
+        ? components.reduce((sum, c) => sum + c.cost, 0)
+        : (Number(p.base_cost) || 0);
       const grossProfit = this.calculateGrossProfit(p.selling_price, totalCost);
       const grossMarginPercentage = p.selling_price > 0
         ? Math.round((grossProfit / p.selling_price) * 100)
@@ -127,7 +134,9 @@ export class ProductService {
 
     const components = this.getCostComponents(p.id);
     const variants = this.getVariants(p.id);
-    const totalCost = components.reduce((sum, c) => sum + c.cost, 0);
+    const totalCost = components.length > 0
+      ? components.reduce((sum, c) => sum + c.cost, 0)
+      : (Number(p.base_cost) || 0);
     const grossProfit = this.calculateGrossProfit(p.selling_price, totalCost);
     const grossMarginPercentage = p.selling_price > 0
       ? Math.round((grossProfit / p.selling_price) * 100)
@@ -235,6 +244,7 @@ export class ProductService {
     hasBundleOffers?: boolean;
     bundleDiscounts?: { discount2?: number; discount3?: number };
     costComponents?: Array<{ name: string; type: CostComponentType; cost: number }>;
+    variants?: Array<{ name: string; sku?: string; additionalPrice?: number; stockQuantity?: number }>;
   }): ProductDetail {
     const cleanSku = data.sku.trim().toUpperCase();
 
@@ -279,6 +289,19 @@ export class ProductService {
         for (const comp of data.costComponents) {
           const compId = `comp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
           insertComp.run(compId, productId, comp.name.trim(), comp.type, comp.cost);
+        }
+      }
+
+      if (data.variants && data.variants.length > 0) {
+        const insertVar = this.db.prepare(`
+          INSERT INTO product_variants (id, product_id, name, sku, additional_cost, additional_price, stock_quantity, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 0, ?, ?, DATETIME('now'), DATETIME('now'))
+        `);
+
+        for (const v of data.variants) {
+          const varId = `var-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+          const varSku = v.sku?.trim().toUpperCase() || `${cleanSku}-${v.name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()}`;
+          insertVar.run(varId, productId, v.name.trim(), varSku, v.additionalPrice || 0, v.stockQuantity ?? 20);
         }
       }
     });

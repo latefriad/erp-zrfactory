@@ -46,6 +46,12 @@ export const CreateProductSchema = z.object({
   hasBundleOffers: z.boolean().optional().default(true),
   bundleDiscounts: BundleDiscountsSchema.optional(),
   costComponents: z.array(CostComponentSchema).optional().default([]),
+  variants: z.array(z.object({
+    name: z.string().min(1),
+    sku: z.string().optional(),
+    additionalPrice: z.number().optional().default(0),
+    stockQuantity: z.number().int().min(0).optional().default(20),
+  })).optional().default([]),
 });
 
 export const UpdateProductSchema = z.object({
