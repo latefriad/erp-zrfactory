@@ -66,6 +66,14 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
     product.variants && product.variants.length > 0 ? product.variants[0] : null
   );
 
+  // Check if product has bundle offers enabled (default is true)
+  const hasBundles = product.hasBundleOffers !== false;
+  const discount2 = product.bundleDiscounts?.discount2 ?? 400;
+  const discount3 = product.bundleDiscounts?.discount3 ?? 900;
+
+  // Standard quantity state (when bundle offers are disabled)
+  const [standardQuantity, setStandardQuantity] = useState<number>(1);
+
   // Bundles definition
   const bundleOffers: BundleOffer[] = useMemo(() => [
     {
@@ -79,17 +87,17 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
       quantity: 2,
       label: 'قطعتين (2 قطع)',
       badge: 'الأكثر شعبية ⭐',
-      discountPerItem: 200, // 200 DA off per piece (400 DA total discount)
+      discountPerItem: Math.round(discount2 / 2),
       popular: true,
     },
     {
       id: 'bundle-3',
       quantity: 3,
       label: '3 قطع (عرض التوفير الأكبر 🔥)',
-      badge: 'توفير 900 د.ج',
-      discountPerItem: 300, // 300 DA off per piece (900 DA total discount)
+      badge: `توفير ${discount3.toLocaleString('fr-DZ')} د.ج`,
+      discountPerItem: Math.round(discount3 / 3),
     },
-  ], []);
+  ], [discount2, discount3]);
 
   const [selectedBundleId, setSelectedBundleId] = useState<string>('bundle-1');
   const activeBundle = useMemo(() => {
@@ -134,8 +142,8 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
 
   // Price calculations
   const unitBasePrice = (product.sellingPrice || 0) + (selectedVariant?.additionalPrice || 0);
-  const totalItemsCount = activeBundle.quantity;
-  const totalDiscount = activeBundle.discountPerItem * totalItemsCount;
+  const totalItemsCount = hasBundles ? activeBundle.quantity : standardQuantity;
+  const totalDiscount = hasBundles ? (activeBundle.discountPerItem * totalItemsCount) : 0;
   const productsSubtotal = (unitBasePrice * totalItemsCount) - totalDiscount;
   const totalOrderAmount = productsSubtotal + deliveryFee;
 
@@ -199,7 +207,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
         notes: [
           notes.trim(),
           `[طلب مباشر من صفحة المنتج]`,
-          `العرض: ${activeBundle.label}`,
+          hasBundles ? `العرض: ${activeBundle.label}` : `الكمية: ${standardQuantity} قطعة`,
           selectedVariant ? `المقاس/اللون: ${selectedVariant.name}` : ''
         ].filter(Boolean).join(' - '),
         items: [
@@ -483,60 +491,101 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
               </div>
             )}
 
-            {/* Special Bundle Offers (اختر ووفر - ZimamShops Style) */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-blue-600" />
-                  <span>عروض التوفير الخاصة (اختر الكمية ووفر):</span>
-                </label>
-                <span className="text-[11px] text-blue-600 font-semibold">خصومات إضافية تلقائية</span>
+            {hasBundles ? (
+              /* Special Bundle Offers (اختر ووفر - ZimamShops Style) */
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-blue-600" />
+                    <span>عروض التوفير الخاصة (اختر الكمية ووفر):</span>
+                  </label>
+                  <span className="text-[11px] text-blue-600 font-semibold">خصومات إضافية تلقائية</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {bundleOffers.map(bundle => {
+                    const isSelected = selectedBundleId === bundle.id;
+                    const itemPrice = unitBasePrice - bundle.discountPerItem;
+                    const total = itemPrice * bundle.quantity;
+
+                    return (
+                      <div
+                        key={bundle.id}
+                        onClick={() => setSelectedBundleId(bundle.id)}
+                        className={`relative cursor-pointer rounded-2xl p-3.5 border-2 transition-all flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/50 shadow-md ring-2 ring-blue-600/20'
+                            : 'border-slate-200 bg-white hover:border-slate-300'
+                        }`}
+                      >
+                        {bundle.badge && (
+                          <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow">
+                            {bundle.badge}
+                          </div>
+                        )}
+
+                        <div className="text-center pt-1">
+                          <span className={`block text-xs font-bold mb-1 ${isSelected ? 'text-blue-900' : 'text-slate-800'}`}>
+                            {bundle.label}
+                          </span>
+                          <div className="text-lg font-black text-slate-900">
+                            {total.toLocaleString('fr-DZ')} <span className="text-xs font-bold text-slate-500">د.ج</span>
+                          </div>
+                        </div>
+
+                        <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-center gap-1 text-[11px] font-semibold text-slate-600">
+                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                          }`}>
+                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                          <span>{bundle.discountPerItem > 0 ? `وفر ${(bundle.discountPerItem * bundle.quantity).toLocaleString('fr-DZ')} د.ج` : 'سعر الحبة العادي'}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {bundleOffers.map(bundle => {
-                  const isSelected = selectedBundleId === bundle.id;
-                  const itemPrice = unitBasePrice - bundle.discountPerItem;
-                  const total = itemPrice * bundle.quantity;
-
-                  return (
-                    <div
-                      key={bundle.id}
-                      onClick={() => setSelectedBundleId(bundle.id)}
-                      className={`relative cursor-pointer rounded-2xl p-3.5 border-2 transition-all flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-blue-600 bg-blue-50/50 shadow-md ring-2 ring-blue-600/20'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
+            ) : (
+              /* Standard Quantity Picker (When bundle offers are disabled) */
+              <div className="space-y-2.5 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <ShoppingBag className="w-4 h-4 text-blue-600" />
+                    <span>الكمية المطلوبة:</span>
+                  </label>
+                  <span className="text-xs font-black text-blue-600">
+                    {(unitBasePrice * standardQuantity).toLocaleString('fr-DZ')} د.ج
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 pt-1">
+                  <div className="inline-flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setStandardQuantity(prev => Math.max(1, prev - 1))}
+                      className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center font-black text-slate-700 hover:bg-slate-50 active:scale-95 transition text-base cursor-pointer"
+                      title="تقليل الكمية"
                     >
-                      {bundle.badge && (
-                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow">
-                          {bundle.badge}
-                        </div>
-                      )}
-
-                      <div className="text-center pt-1">
-                        <span className={`block text-xs font-bold mb-1 ${isSelected ? 'text-blue-900' : 'text-slate-800'}`}>
-                          {bundle.label}
-                        </span>
-                        <div className="text-lg font-black text-slate-900">
-                          {total.toLocaleString('fr-DZ')} <span className="text-xs font-bold text-slate-500">د.ج</span>
-                        </div>
-                      </div>
-
-                      <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-center gap-1 text-[11px] font-semibold text-slate-600">
-                        <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
-                          isSelected ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
-                        }`}>
-                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                        </div>
-                        <span>{bundle.discountPerItem > 0 ? `وفر ${(bundle.discountPerItem * bundle.quantity).toLocaleString('fr-DZ')} د.ج` : 'سعر الحبة العادي'}</span>
-                      </div>
-                    </div>
-                  );
-                })}
+                      -
+                    </button>
+                    <span className="w-12 text-center font-black text-slate-900 text-base select-none">
+                      {standardQuantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStandardQuantity(prev => prev + 1)}
+                      className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center font-black text-slate-700 hover:bg-slate-50 active:scale-95 transition text-base cursor-pointer"
+                      title="زيادة الكمية"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium">
+                    (سعر القطعة: {unitBasePrice.toLocaleString('fr-DZ')} د.ج)
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* ============================================================ */}
             {/* FAST ALGERIAN COD ORDER FORM */}
@@ -706,9 +755,16 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                 {/* Live Order Pricing Calculation */}
                 <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2 text-xs">
                   <div className="flex justify-between text-slate-600">
-                    <span>ثمن المنتج ({activeBundle.label}):</span>
-                    <span className="font-bold">{productsSubtotal.toLocaleString('fr-DZ')} د.ج</span>
+                    <span>ثمن المنتجات ({hasBundles ? activeBundle.label : `${standardQuantity} قطع`}):</span>
+                    <span className="font-bold">{(unitBasePrice * totalItemsCount).toLocaleString('fr-DZ')} د.ج</span>
                   </div>
+
+                  {hasBundles && totalDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+                      <span>وفرت مع هذا العرض:</span>
+                      <span>-{totalDiscount.toLocaleString('fr-DZ')} د.ج</span>
+                    </div>
+                  )}
 
                   <div className="flex justify-between text-slate-600">
                     <span>

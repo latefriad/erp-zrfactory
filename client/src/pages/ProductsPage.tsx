@@ -46,6 +46,11 @@ interface Product {
   imageUrl?: string | null;
   images?: string[];
   features?: string[];
+  hasBundleOffers?: boolean;
+  bundleDiscounts?: {
+    discount2?: number;
+    discount3?: number;
+  };
   totalCost: number;
   grossProfit: number;
   grossMarginPercentage: number;
@@ -95,6 +100,9 @@ export const ProductsPage: React.FC = () => {
     imageUrl: '',
     images: [] as string[],
     features: [] as string[],
+    hasBundleOffers: true,
+    discount2: 400,
+    discount3: 900,
     newFeatureText: '',
     newImageUrlText: '',
     components: [
@@ -113,6 +121,9 @@ export const ProductsPage: React.FC = () => {
     imageUrl: '',
     images: [] as string[],
     features: [] as string[],
+    hasBundleOffers: true,
+    discount2: 400,
+    discount3: 900,
     newFeatureText: '',
     newImageUrlText: '',
   });
@@ -300,6 +311,11 @@ export const ProductsPage: React.FC = () => {
           imageUrl: newProd.images.length > 0 ? newProd.images[0] : (newProd.imageUrl || null),
           images: newProd.images,
           features: newProd.features,
+          hasBundleOffers: newProd.hasBundleOffers,
+          bundleDiscounts: {
+            discount2: Number(newProd.discount2) || 400,
+            discount3: Number(newProd.discount3) || 900,
+          },
           costComponents: validComponents,
         }),
       });
@@ -316,6 +332,9 @@ export const ProductsPage: React.FC = () => {
         imageUrl: '',
         images: [],
         features: [],
+        hasBundleOffers: true,
+        discount2: 400,
+        discount3: 900,
         newFeatureText: '',
         newImageUrlText: '',
         components: [
@@ -344,6 +363,9 @@ export const ProductsPage: React.FC = () => {
       imageUrl: product.imageUrl || '',
       images: product.images && product.images.length > 0 ? product.images : (product.imageUrl ? [product.imageUrl] : []),
       features: product.features || [],
+      hasBundleOffers: product.hasBundleOffers !== false,
+      discount2: product.bundleDiscounts?.discount2 ?? 400,
+      discount3: product.bundleDiscounts?.discount3 ?? 900,
       newFeatureText: '',
       newImageUrlText: '',
     });
@@ -366,6 +388,11 @@ export const ProductsPage: React.FC = () => {
           imageUrl: editProd.images.length > 0 ? editProd.images[0] : (editProd.imageUrl || null),
           images: editProd.images,
           features: editProd.features,
+          hasBundleOffers: editProd.hasBundleOffers,
+          bundleDiscounts: {
+            discount2: Number(editProd.discount2) || 400,
+            discount3: Number(editProd.discount3) || 900,
+          },
         }),
       });
 
@@ -618,6 +645,16 @@ export const ProductsPage: React.FC = () => {
                           <span className="text-[10px] bg-indigo-50 text-indigo-700 font-semibold px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
                             <ImageIcon className="w-3 h-3" />
                             {product.images.length} photos
+                          </span>
+                        )}
+                        {product.hasBundleOffers !== false ? (
+                          <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1" title="Offres de packs 1, 2, 3 pièces activées">
+                            <Sparkles className="w-3 h-3 text-emerald-600" />
+                            Packs Promo Actifs
+                          </span>
+                        ) : (
+                          <span className="text-[10px] bg-slate-100 text-slate-600 font-medium px-2 py-0.5 rounded-full border border-slate-200 flex items-center gap-1" title="Quantité standard simple (1 par 1)">
+                            Qté Standard
                           </span>
                         )}
                       </div>
@@ -1148,6 +1185,79 @@ export const ProductsPage: React.FC = () => {
                 )}
               </div>
 
+              {/* Bundle Offers Configuration (عروض التوفير الخاصة) */}
+              <div className="bg-gradient-to-br from-indigo-50/60 to-blue-50/60 p-4 rounded-xl border border-blue-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <div>
+                      <label className="text-xs font-bold text-slate-900 block">
+                        Packs promo & Offres de quantité (عروض التوفير)
+                      </label>
+                      <span className="text-[11px] text-slate-500">
+                        Activer les cartes de réduction 1 pièce / 2 pièces / 3 pièces sur le Store
+                      </span>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={newProd.hasBundleOffers}
+                      onChange={(e) => setNewProd({ ...newProd, hasBundleOffers: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {newProd.hasBundleOffers && (
+                  <div className="pt-2 border-t border-blue-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Remise Pack 2 Pièces (DZD)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          step="50"
+                          value={newProd.discount2}
+                          onChange={(e) => setNewProd({ ...newProd, discount2: Number(e.target.value) })}
+                          placeholder="Ex: 400"
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-blue-700 bg-white"
+                        />
+                        <span className="absolute right-3 top-1.5 text-xs text-slate-400 font-semibold">DA</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 block mt-0.5 font-medium">
+                        Soit -{Math.round((newProd.discount2 || 0) / 2)} DA / pièce
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Remise Pack 3 Pièces (DZD)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          step="50"
+                          value={newProd.discount3}
+                          onChange={(e) => setNewProd({ ...newProd, discount3: Number(e.target.value) })}
+                          placeholder="Ex: 900"
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-blue-700 bg-white"
+                        />
+                        <span className="absolute right-3 top-1.5 text-xs text-slate-400 font-semibold">DA</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 block mt-0.5 font-medium">
+                        Soit -{Math.round((newProd.discount3 || 0) / 3)} DA / pièce
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Initial Cost Components */}
               <div className="border-t border-slate-200 pt-3">
                 <p className="text-xs font-bold text-slate-700 mb-2">Composants de Coût POD (Calcul de Marge)</p>
@@ -1419,6 +1529,79 @@ export const ProductsPage: React.FC = () => {
                         </button>
                       </span>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Bundle Offers Configuration (عروض التوفير الخاصة) */}
+              <div className="bg-gradient-to-br from-indigo-50/60 to-blue-50/60 p-4 rounded-xl border border-blue-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <div>
+                      <label className="text-xs font-bold text-slate-900 block">
+                        Packs promo & Offres de quantité (عروض التوفير)
+                      </label>
+                      <span className="text-[11px] text-slate-500">
+                        Activer les cartes de réduction 1 pièce / 2 pièces / 3 pièces sur le Store
+                      </span>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={editProd.hasBundleOffers}
+                      onChange={(e) => setEditProd({ ...editProd, hasBundleOffers: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {editProd.hasBundleOffers && (
+                  <div className="pt-2 border-t border-blue-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Remise Pack 2 Pièces (DZD)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          step="50"
+                          value={editProd.discount2}
+                          onChange={(e) => setEditProd({ ...editProd, discount2: Number(e.target.value) })}
+                          placeholder="Ex: 400"
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-blue-700 bg-white"
+                        />
+                        <span className="absolute right-3 top-1.5 text-xs text-slate-400 font-semibold">DA</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 block mt-0.5 font-medium">
+                        Soit -{Math.round((editProd.discount2 || 0) / 2)} DA / pièce
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Remise Pack 3 Pièces (DZD)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          step="50"
+                          value={editProd.discount3}
+                          onChange={(e) => setEditProd({ ...editProd, discount3: Number(e.target.value) })}
+                          placeholder="Ex: 900"
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-blue-700 bg-white"
+                        />
+                        <span className="absolute right-3 top-1.5 text-xs text-slate-400 font-semibold">DA</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 block mt-0.5 font-medium">
+                        Soit -{Math.round((editProd.discount3 || 0) / 3)} DA / pièce
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>

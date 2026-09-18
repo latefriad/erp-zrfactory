@@ -21,6 +21,11 @@ export interface Product {
   imageUrl?: string | null;
   images?: string[];
   features?: string[];
+  hasBundleOffers?: boolean;
+  bundleDiscounts?: {
+    discount2?: number;
+    discount3?: number;
+  };
   isActive: boolean;
   variants?: ProductVariant[];
   createdAt: string;

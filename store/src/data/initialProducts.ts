@@ -21,6 +21,8 @@ export const INITIAL_PRODUCTS: Product[] = [
       'خياطة مزدوجة معززة في الأكتاف والياقة لتحمل الاستخدام الشاق',
       'شحن سريع متوفر لجميع ولايات الوطن الـ 58 مع خيار الدفع عند الاستلام'
     ],
+    hasBundleOffers: true,
+    bundleDiscounts: { discount2: 400, discount3: 900 },
     isActive: true,
     variants: [
       { id: 'var-8', productId: 'prod-tshort-uniform', name: 'Noir / S', sku: '140-BLK-S', additionalCost: 0, additionalPrice: 0, stockQuantity: 25, createdAt: '', updatedAt: '' },

@@ -34,7 +34,7 @@ export class ProductService {
   }
 
   public listProducts(query?: { search?: string; isActive?: boolean }): ProductDetail[] {
-    let sql = `SELECT id, name, sku, description, base_cost, selling_price, compare_at_price, image_url, images, features, is_active, created_at, updated_at FROM products WHERE 1=1`;
+    let sql = `SELECT id, name, sku, description, base_cost, selling_price, compare_at_price, image_url, images, features, has_bundle_offers, bundle_discounts, is_active, created_at, updated_at FROM products WHERE 1=1`;
     const params: any[] = [];
 
     if (query?.isActive !== undefined) {
@@ -80,6 +80,15 @@ export class ProductService {
         }
       }
 
+      let parsedBundleDiscounts: { discount2?: number; discount3?: number } | undefined;
+      if (p.bundle_discounts) {
+        try {
+          parsedBundleDiscounts = JSON.parse(p.bundle_discounts);
+        } catch {
+          parsedBundleDiscounts = undefined;
+        }
+      }
+
       return {
         id: p.id,
         name: p.name,
@@ -91,6 +100,8 @@ export class ProductService {
         imageUrl: p.image_url || (parsedImages.length > 0 ? parsedImages[0] : null),
         images: parsedImages,
         features: parsedFeatures,
+        hasBundleOffers: p.has_bundle_offers !== null && p.has_bundle_offers !== undefined ? p.has_bundle_offers === 1 : true,
+        bundleDiscounts: parsedBundleDiscounts,
         grossProfit,
         totalCost,
         grossMarginPercentage,
@@ -105,7 +116,7 @@ export class ProductService {
 
   public getProductById(id: string): ProductDetail {
     const p = this.db.prepare(`
-      SELECT id, name, sku, description, base_cost, selling_price, compare_at_price, image_url, images, features, is_active, created_at, updated_at 
+      SELECT id, name, sku, description, base_cost, selling_price, compare_at_price, image_url, images, features, has_bundle_offers, bundle_discounts, is_active, created_at, updated_at 
       FROM products 
       WHERE id = ?
     `).get(id) as any;
@@ -142,6 +153,15 @@ export class ProductService {
       }
     }
 
+    let parsedBundleDiscounts: { discount2?: number; discount3?: number } | undefined;
+    if (p.bundle_discounts) {
+      try {
+        parsedBundleDiscounts = JSON.parse(p.bundle_discounts);
+      } catch {
+        parsedBundleDiscounts = undefined;
+      }
+    }
+
     return {
       id: p.id,
       name: p.name,
@@ -153,6 +173,8 @@ export class ProductService {
       imageUrl: p.image_url || (parsedImages.length > 0 ? parsedImages[0] : null),
       images: parsedImages,
       features: parsedFeatures,
+      hasBundleOffers: p.has_bundle_offers !== null && p.has_bundle_offers !== undefined ? p.has_bundle_offers === 1 : true,
+      bundleDiscounts: parsedBundleDiscounts,
       grossProfit,
       totalCost,
       grossMarginPercentage,
@@ -210,6 +232,8 @@ export class ProductService {
     imageUrl?: string | null;
     images?: string[];
     features?: string[];
+    hasBundleOffers?: boolean;
+    bundleDiscounts?: { discount2?: number; discount3?: number };
     costComponents?: Array<{ name: string; type: CostComponentType; cost: number }>;
   }): ProductDetail {
     const cleanSku = data.sku.trim().toUpperCase();
@@ -225,11 +249,13 @@ export class ProductService {
       : (data.imageUrl ? JSON.stringify([data.imageUrl]) : null);
     const mainImageUrl = data.imageUrl || (data.images && data.images.length > 0 ? data.images[0] : null);
     const featuresJson = data.features && data.features.length > 0 ? JSON.stringify(data.features) : null;
+    const hasBundleOffersVal = data.hasBundleOffers === false ? 0 : 1;
+    const bundleDiscountsJson = data.bundleDiscounts ? JSON.stringify(data.bundleDiscounts) : null;
 
     const tx = this.db.transaction(() => {
       this.db.prepare(`
-        INSERT INTO products (id, name, sku, description, base_cost, selling_price, compare_at_price, image_url, images, features, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 1, DATETIME('now'), DATETIME('now'))
+        INSERT INTO products (id, name, sku, description, base_cost, selling_price, compare_at_price, image_url, images, features, has_bundle_offers, bundle_discounts, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, 1, DATETIME('now'), DATETIME('now'))
       `).run(
         productId,
         data.name.trim(),
@@ -239,7 +265,9 @@ export class ProductService {
         data.compareAtPrice || null,
         mainImageUrl,
         imagesJson,
-        featuresJson
+        featuresJson,
+        hasBundleOffersVal,
+        bundleDiscountsJson
       );
 
       if (data.costComponents && data.costComponents.length > 0) {
@@ -268,6 +296,8 @@ export class ProductService {
     imageUrl?: string | null;
     images?: string[];
     features?: string[];
+    hasBundleOffers?: boolean;
+    bundleDiscounts?: { discount2?: number; discount3?: number } | null;
     isActive?: boolean;
   }): ProductDetail {
     this.getProductById(id); // Ensure exists
@@ -306,6 +336,14 @@ export class ProductService {
     if (data.features !== undefined) {
       fields.push('features = ?');
       values.push(JSON.stringify(data.features));
+    }
+    if (data.hasBundleOffers !== undefined) {
+      fields.push('has_bundle_offers = ?');
+      values.push(data.hasBundleOffers ? 1 : 0);
+    }
+    if (data.bundleDiscounts !== undefined) {
+      fields.push('bundle_discounts = ?');
+      values.push(data.bundleDiscounts ? JSON.stringify(data.bundleDiscounts) : null);
     }
     if (data.isActive !== undefined) {
       fields.push('is_active = ?');

@@ -29,6 +29,11 @@ export const CostComponentSchema = z.object({
   isConfigurable: z.boolean().optional().default(true),
 });
 
+export const BundleDiscountsSchema = z.object({
+  discount2: z.number().optional().default(400),
+  discount3: z.number().optional().default(900),
+});
+
 export const CreateProductSchema = z.object({
   name: z.string().min(2, 'Le nom du produit est requis (min 2 caractères)'),
   sku: z.string().min(2, 'Le code SKU est requis'),
@@ -38,6 +43,8 @@ export const CreateProductSchema = z.object({
   imageUrl: z.string().optional().nullable(),
   images: z.array(z.string()).optional().default([]),
   features: z.array(z.string()).optional().default([]),
+  hasBundleOffers: z.boolean().optional().default(true),
+  bundleDiscounts: BundleDiscountsSchema.optional(),
   costComponents: z.array(CostComponentSchema).optional().default([]),
 });
 
@@ -49,6 +56,8 @@ export const UpdateProductSchema = z.object({
   imageUrl: z.string().optional().nullable(),
   images: z.array(z.string()).optional(),
   features: z.array(z.string()).optional(),
+  hasBundleOffers: z.boolean().optional(),
+  bundleDiscounts: BundleDiscountsSchema.optional(),
   isActive: z.boolean().optional(),
 });
 
