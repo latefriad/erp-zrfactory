@@ -102,6 +102,15 @@ const ALGERIA_WILAYAS = [
   { code: 58, name: '58 - El Meniaa' },
 ];
 
+const DEFAULT_COURIER_LIST: CourierConfiguration[] = [
+  { id: '1', courierKey: 'elogistia', name: 'Elogistia', isActive: true, isDefault: true, credentials: {}, fromWilaya: 16, defaultDeliveryType: 'home' },
+  { id: '2', courierKey: 'zrexpress', name: 'ZR Express (Procolis)', isActive: true, isDefault: false, credentials: {}, fromWilaya: 16, defaultDeliveryType: 'home' },
+  { id: '3', courierKey: 'zrexpressnew', name: 'ZR Express (Nouvelle Plateforme)', isActive: false, isDefault: false, credentials: {}, fromWilaya: 16, defaultDeliveryType: 'home' },
+  { id: '4', courierKey: 'ecomdelivery', name: 'Ecom Delivery', isActive: true, isDefault: false, credentials: {}, fromWilaya: 16, defaultDeliveryType: 'home' },
+  { id: '5', courierKey: 'yalidine', name: 'Yalidine Express', isActive: false, isDefault: false, credentials: {}, fromWilaya: 16, defaultDeliveryType: 'home' },
+  { id: '6', courierKey: 'sandbox', name: 'Mode Test dzship Sandbox', isActive: false, isDefault: false, credentials: {}, fromWilaya: 16, defaultDeliveryType: 'home' }
+];
+
 export const ShippingPage: React.FC = () => {
   const { language } = useApp();
   const { isAdmin, canAccessFinance } = useAuth();
@@ -110,7 +119,7 @@ export const ShippingPage: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'queue' | 'manifests' | 'tracking' | 'rates' | 'couriers'>('queue');
 
   // Dzship & Couriers State
-  const [couriers, setCouriers] = useState<CourierConfiguration[]>([]);
+  const [couriers, setCouriers] = useState<CourierConfiguration[]>(DEFAULT_COURIER_LIST);
   const [courierFormCreds, setCourierFormCreds] = useState<Record<string, Record<string, string>>>({});
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [testingCourierKey, setTestingCourierKey] = useState<string | null>(null);
@@ -189,13 +198,14 @@ export const ShippingPage: React.FC = () => {
       setMetrics(metricsRes.metrics);
       setQueueOrders(queueRes.orders || []);
       setManifests(manifestsRes.manifests || []);
-      setCouriers(couriersRes.couriers || []);
+      const finalCouriers = (couriersRes.couriers && couriersRes.couriers.length > 0)
+        ? couriersRes.couriers
+        : DEFAULT_COURIER_LIST;
+      setCouriers(finalCouriers);
 
-      if (couriersRes.couriers && couriersRes.couriers.length > 0) {
-        const defaultC = couriersRes.couriers.find(c => c.isDefault && c.isActive) || couriersRes.couriers.find(c => c.isActive) || couriersRes.couriers[0];
-        if (defaultC) {
-          setSelectedDispatchCourier(defaultC.courierKey);
-        }
+      const defaultC = finalCouriers.find(c => c.isDefault && c.isActive) || finalCouriers.find(c => c.isActive) || finalCouriers[0];
+      if (defaultC) {
+        setSelectedDispatchCourier(defaultC.courierKey);
       }
 
       // Shipped or recently delivered/returned orders for tracking view
