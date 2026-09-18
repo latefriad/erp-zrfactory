@@ -13,7 +13,7 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
-const CACHE_KEY = 'zr_store_products_cache_v2';
+const CACHE_KEY = 'zr_store_products_cache_v3';
 
 export const storeApi = {
   getInitialProducts(): Product[] {

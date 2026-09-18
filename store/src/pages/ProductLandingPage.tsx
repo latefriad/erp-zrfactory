@@ -465,10 +465,17 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
             {/* Variant Picker (Sizes / Colors) */}
             {product.variants && product.variants.length > 0 && (
               <div className="space-y-2.5 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                <label className="block text-xs font-bold text-slate-800">
-                  اختر المقاس / الخيار المطلوب:
-                </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-800">
+                    اختر المقاس / الخيار المطلوب:
+                  </label>
+                  {selectedVariant && (
+                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60">
+                      المحدد: {selectedVariant.name}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 max-h-52 overflow-y-auto pr-1">
                   {product.variants.map(variant => {
                     const isSelected = selectedVariant?.id === variant.id;
                     return (
@@ -476,7 +483,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                         key={variant.id}
                         type="button"
                         onClick={() => setSelectedVariant(variant)}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
                           isSelected
                             ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-slate-900/20 scale-105'
                             : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-400'

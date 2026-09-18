@@ -68,13 +68,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         {/* Body */}
         <div className="p-6 overflow-y-auto space-y-6">
           {/* Top Banner / Mockup */}
-          <div className="aspect-[16/9] rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 flex flex-col items-center justify-center p-4 text-white relative">
-            <div className="w-16 h-16 rounded-xl bg-white/10 flex items-center justify-center mb-2">
-              <ShoppingBag className="w-8 h-8 text-blue-400" />
-            </div>
-            <span className="text-xs font-mono text-slate-400">SKU: {product.sku}</span>
-            <div className="absolute top-3 right-3 bg-blue-600 text-white text-[11px] font-bold px-2 py-0.5 rounded shadow">
-              طباعة DTF عالية الدقة
+          <div className="aspect-[16/9] rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 flex flex-col items-center justify-center text-white relative shadow-inner">
+            {product.imageUrl || (product.images && product.images.length > 0) ? (
+              <img
+                src={product.imageUrl || product.images![0]}
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-4">
+                <div className="w-16 h-16 rounded-xl bg-white/10 flex items-center justify-center mb-2">
+                  <ShoppingBag className="w-8 h-8 text-blue-400" />
+                </div>
+                <span className="text-xs font-mono text-slate-400">SKU: {product.sku}</span>
+              </div>
+            )}
+            <div className="absolute top-3 right-3 bg-blue-600/90 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">
+              طباعة DTF فاخرة
             </div>
           </div>
 
@@ -88,10 +98,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {/* Variants Selector */}
           {variants.length > 0 && (
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 block">
-                اختر المقاس أو اللون ({variants.length} متوفر):
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 block">
+                  اختر المقاس أو اللون ({variants.length} متوفر):
+                </label>
+                {selectedVariant && (
+                  <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                    المحدد: {selectedVariant.name}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
                 {variants.map(v => {
                   const isSelected = selectedVariant?.id === v.id;
                   return (
