@@ -17,7 +17,11 @@ export function errorHandler(
   // Mask internal error messages for unhandled internal exceptions in production
   let message = err.message;
   if (!isAppError && config.env === 'production') {
-    message = 'Une erreur interne est survenue sur le serveur.';
+    // Only mask low-level technical errors (e.g. database, syntax, undefined property)
+    const isTechnical = !message || /database|syntax|undefined|cannot read|ECONNREFUSED|sqlite/i.test(message);
+    if (isTechnical) {
+      message = 'Une erreur interne est survenue sur le serveur.';
+    }
   }
 
   logger.error(`[Error Handler] ${statusCode} - ${message}`, {

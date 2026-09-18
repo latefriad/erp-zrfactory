@@ -292,14 +292,14 @@ export class DzshipService {
       return JSON.parse(text);
     } catch {
       if (response.status === 502 || response.status === 503) {
-        throw new Error(
+        throw new ValidationError(
           `Le serveur de ${courierName} ou la passerelle dzship a retourné une indisponibilité (HTTP ${response.status} Bad Gateway). La clé API semble invalide ou le service du transporteur est temporairement inaccessible.`
         );
       }
       if (response.status === 504) {
-        throw new Error(`Délai d'attente dépassé avec le serveur de ${courierName} (HTTP 504 Gateway Timeout).`);
+        throw new ValidationError(`Délai d'attente dépassé avec le serveur de ${courierName} (HTTP 504 Gateway Timeout).`);
       }
-      throw new Error(`Réponse non valide (HTTP ${response.status}) de la passerelle de livraison.`);
+      throw new ValidationError(`Réponse non valide (HTTP ${response.status}) reçue de la passerelle de livraison.`);
     }
   }
 
