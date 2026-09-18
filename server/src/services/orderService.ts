@@ -24,6 +24,8 @@ export interface CreateOrderInput {
   shippingWilaya?: string | null;
   shippingCommune?: string | null;
   shippingAddress?: string | null;
+  designFileName?: string | null;
+  designFileUrl?: string | null;
   notes?: string | null;
 }
 
@@ -239,8 +241,9 @@ export class OrderService {
           id, order_number, customer_id, status, payment_status,
           subtotal, discount, delivery_fee, total, cost, profit,
           delivery_company, tracking_number, shipping_wilaya, shipping_commune, shipping_address,
+          design_file_name, design_file_url,
           notes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         orderId,
         orderNumber,
@@ -258,6 +261,8 @@ export class OrderService {
         shippingWilaya,
         shippingCommune,
         shippingAddress,
+        input.designFileName || null,
+        input.designFileUrl || null,
         input.notes || null,
         now,
         now
@@ -345,6 +350,7 @@ export class OrderService {
         o.id, o.order_number, o.customer_id, o.status, o.payment_status,
         o.subtotal, o.discount, o.delivery_fee, o.total, o.cost, o.profit,
         o.delivery_company, o.tracking_number, o.shipping_wilaya, o.shipping_commune, o.shipping_address,
+        o.design_file_name, o.design_file_url,
         o.notes, o.created_at, o.updated_at,
         c.name as customer_name, c.phone as customer_phone, c.email as customer_email,
         c.wilaya as customer_wilaya, c.commune as customer_commune, c.address as customer_address
@@ -405,6 +411,8 @@ export class OrderService {
       shippingWilaya: row.shipping_wilaya,
       shippingCommune: row.shipping_commune,
       shippingAddress: row.shipping_address,
+      designFileName: row.design_file_name,
+      designFileUrl: row.design_file_url,
       notes: row.notes,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -553,6 +561,7 @@ export class OrderService {
         o.id, o.order_number, o.customer_id, o.status, o.payment_status,
         o.subtotal, o.discount, o.delivery_fee, o.total, o.cost, o.profit,
         o.delivery_company, o.tracking_number, o.shipping_wilaya, o.shipping_commune, o.shipping_address,
+        o.design_file_name, o.design_file_url,
         o.notes, o.created_at, o.updated_at,
         c.name as customer_name, c.phone as customer_phone,
         (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as items_count
@@ -629,6 +638,8 @@ export class OrderService {
       shippingWilaya: r.shipping_wilaya,
       shippingCommune: r.shipping_commune,
       shippingAddress: r.shipping_address,
+      designFileName: r.design_file_name,
+      designFileUrl: r.design_file_url,
       notes: r.notes,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -793,6 +804,8 @@ export class OrderService {
       deliveryCompany: input.deliveryCompany || 'Yalidine',
       deliveryFee: input.deliveryFee !== undefined ? input.deliveryFee : 600,
       notes: orderNotes,
+      designFileName: input.designFileName || null,
+      designFileUrl: input.designFileUrl || null,
       status: OrderStatus.PENDING,
       paymentStatus: PaymentStatus.UNPAID,
     });
@@ -810,6 +823,7 @@ export class OrderService {
         o.id, o.order_number, o.status, o.payment_status,
         o.subtotal, o.delivery_fee, o.total,
         o.delivery_company, o.tracking_number, o.shipping_wilaya, o.shipping_commune,
+        o.design_file_name, o.design_file_url, o.notes,
         o.created_at, o.updated_at,
         c.name as customer_name, c.phone as customer_phone
       FROM orders o
@@ -850,6 +864,9 @@ export class OrderService {
       trackingNumber: row.tracking_number,
       total: row.total,
       deliveryFee: row.delivery_fee,
+      designFileName: row.design_file_name,
+      designFileUrl: row.design_file_url,
+      notes: row.notes,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       items: items.map(i => ({

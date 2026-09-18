@@ -52,6 +52,8 @@ export interface Order {
   shippingWilaya?: string | null;
   shippingCommune?: string | null;
   shippingAddress?: string | null;
+  designFileName?: string | null;
+  designFileUrl?: string | null;
   notes?: string | null;
   createdAt: string;
   updatedAt: string;

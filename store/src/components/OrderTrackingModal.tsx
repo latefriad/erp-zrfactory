@@ -293,21 +293,41 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
               {/* Uploaded Design/Logo info if exists */}
               {(() => {
                 const matching = recentOrders.find(r => r.orderNumber === orderInfo.orderNumber);
-                if (matching?.designFileName) {
+                const fileUrl = orderInfo.designFileUrl || matching?.designPreviewUrl;
+                const fileName = orderInfo.designFileName || matching?.designFileName;
+                if (fileName || fileUrl) {
                   return (
-                    <div className="p-3.5 rounded-xl bg-indigo-50/80 border border-indigo-200 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-[11px] text-indigo-500 block">ملف الشعار المرفق:</span>
-                          <span className="font-black text-indigo-950">{matching.designFileName}</span>
+                    <div className="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-200 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {fileUrl ? (
+                          <div className="w-12 h-12 rounded-xl border border-indigo-200 overflow-hidden bg-white shrink-0 shadow-sm">
+                            <img src={fileUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <span className="text-[11px] text-indigo-600 font-bold block">ملف الشعار المرفق مع الطلب:</span>
+                          <span className="font-black text-indigo-950 truncate block">{fileName || 'شعار مخصص'}</span>
                         </div>
                       </div>
-                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded-full border border-indigo-200">
-                        مرفق في الطلب ✓
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {fileUrl && (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-2.5 py-1.5 rounded-lg bg-white border border-indigo-200 text-indigo-700 font-bold text-[11px] hover:bg-indigo-100 transition shadow-xs"
+                          >
+                            معاينة
+                          </a>
+                        )}
+                        <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded-full border border-indigo-200">
+                          مرفق ✓
+                        </span>
+                      </div>
                     </div>
                   );
                 }

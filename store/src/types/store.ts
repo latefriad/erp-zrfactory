@@ -155,6 +155,9 @@ export interface OrderTrackingInfo {
   trackingNumber: string;
   total: number;
   deliveryFee: number;
+  designFileName?: string;
+  designFileUrl?: string;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
   items: TrackingItem[];

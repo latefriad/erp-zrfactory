@@ -24,7 +24,11 @@ import {
   TrendingUp,
   CreditCard,
   Zap,
-  Loader2
+  Loader2,
+  Download,
+  MessageCircle,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface OrderStats {
@@ -78,6 +82,7 @@ export const OrdersPage: React.FC = () => {
 
   // Selected Order for Detail Modal
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
+  const [previewImageModal, setPreviewImageModal] = useState<{ url: string; title: string } | null>(null);
 
   // Transfer to Courier State
   const [couriers, setCouriers] = useState<CourierConfiguration[]>([]);
@@ -703,6 +708,25 @@ export const OrdersPage: React.FC = () => {
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
                           {ord.itemsCount || 1} article(s)
                         </span>
+                        {(ord.designFileName || ord.designFileUrl) && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            {ord.designFileUrl ? (
+                              <img
+                                src={ord.designFileUrl}
+                                alt="Logo"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewImageModal({ url: ord.designFileUrl!, title: ord.designFileName || ord.orderNumber });
+                                }}
+                                className="w-5 h-5 rounded object-contain border border-purple-200 bg-white cursor-pointer hover:scale-110 transition-transform shadow-xs"
+                                title="Cliquer pour voir le logo"
+                              />
+                            ) : null}
+                            <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 truncate max-w-[110px]" title={ord.designFileName || 'Logo personnalisé'}>
+                              🎨 {ord.designFileName || 'Logo'}
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       <td className="px-5 py-4 text-right font-black text-slate-900">
@@ -879,6 +903,117 @@ export const OrdersPage: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {/* Attached Design & Logo Section */}
+              {(activeOrder.designFileUrl || activeOrder.designFileName) && (
+                <div className="p-4 rounded-2xl bg-linear-to-r from-purple-50 via-indigo-50/50 to-blue-50 border-2 border-purple-200 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-purple-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4 text-purple-600" />
+                      <span>{language === 'ar' ? 'ملف الشعار والتصميم المرفق من الزبون' : 'Fichier Design / Logo Attaché'}</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-full border border-purple-300">
+                      {language === 'ar' ? 'جاهز للطباعة / التطريز' : 'Prêt pour impression / broderie'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white/90 p-3.5 rounded-xl border border-purple-100">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {activeOrder.designFileUrl ? (
+                        <div 
+                          onClick={() => setPreviewImageModal({ 
+                            url: activeOrder.designFileUrl!, 
+                            title: activeOrder.designFileName || activeOrder.orderNumber 
+                          })}
+                          className="w-16 h-16 rounded-xl border-2 border-purple-200 overflow-hidden bg-slate-50 shrink-0 shadow-sm cursor-pointer hover:opacity-90 hover:scale-105 transition group relative"
+                          title="Cliquer pour afficher en plein écran"
+                        >
+                          <img 
+                            src={activeOrder.designFileUrl} 
+                            alt="Logo client" 
+                            className="w-full h-full object-contain p-1" 
+                          />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                            <Eye className="w-4 h-4 text-white drop-shadow" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl border-2 border-purple-200 bg-purple-50 flex flex-col items-center justify-center shrink-0 text-purple-700 shadow-sm">
+                          <FileText className="w-6 h-6" />
+                          <span className="text-[9px] font-bold uppercase mt-0.5">DOC</span>
+                        </div>
+                      )}
+
+                      <div className="min-w-0">
+                        <span className="text-xs font-black text-slate-900 truncate block">
+                          {activeOrder.designFileName || 'Fichier-Design.png'}
+                        </span>
+                        <span className="text-[11px] text-slate-500 block mt-0.5">
+                          {activeOrder.designFileUrl ? 'Image de haute définition (Image DataURL)' : 'Document joint'}
+                        </span>
+                        {activeOrder.notes?.includes('تطريز') && (
+                          <span className="inline-block mt-1 text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            تطريز صناعي فاخر (Broderie)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action buttons: Download & WhatsApp */}
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                      {activeOrder.designFileUrl && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setPreviewImageModal({ 
+                              url: activeOrder.designFileUrl!, 
+                              title: activeOrder.designFileName || activeOrder.orderNumber 
+                            })}
+                            className="px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs rounded-xl border border-purple-200 shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>{language === 'ar' ? 'معاينة مكبرة' : 'Agrandir'}</span>
+                          </button>
+
+                          <a
+                            href={activeOrder.designFileUrl}
+                            download={activeOrder.designFileName || `design-${activeOrder.orderNumber}.png`}
+                            className="px-3.5 py-2 bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>{language === 'ar' ? 'تنزيل الملف' : 'Télécharger'}</span>
+                          </a>
+                        </>
+                      )}
+
+                      {activeOrder.customer?.phone && (
+                        <a
+                          href={`https://wa.me/213${activeOrder.customer.phone.replace(/^0/, '').replace(/\s+/g, '')}?text=${encodeURIComponent(`Bonjour ${activeOrder.customer.name}, nous avons bien reçu votre commande ${activeOrder.orderNumber} sur ZR Factory concernant votre design.`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                          title="Ouvrir WhatsApp avec le client"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>WhatsApp</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Order Notes Card if present */}
+              {activeOrder.notes && (
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <span className="text-slate-400 font-bold uppercase tracking-wider block mb-1">
+                    {language === 'ar' ? 'ملاحظات الطلب والتوصيل:' : 'Notes et Spécifications de la Commande:'}
+                  </span>
+                  <p className="text-slate-800 font-medium whitespace-pre-line leading-relaxed">
+                    {activeOrder.notes}
+                  </p>
+                </div>
+              )}
 
               {/* Order Items Detailed Table */}
               <div>
@@ -1512,6 +1647,49 @@ export const OrdersPage: React.FC = () => {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Design Image Lightbox Modal */}
+      {previewImageModal && (
+        <div 
+          onClick={() => setPreviewImageModal(null)}
+          className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[90vh]"
+          >
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2 min-w-0">
+                <ImageIcon className="w-4 h-4 text-purple-600 shrink-0" />
+                <span className="font-bold text-xs text-slate-800 truncate">{previewImageModal.title}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={previewImageModal.url}
+                  download={previewImageModal.title || 'design-logo.png'}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-xs transition cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Télécharger</span>
+                </a>
+                <button
+                  onClick={() => setPreviewImageModal(null)}
+                  className="p-1.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6 bg-slate-900/5 flex items-center justify-center overflow-auto max-h-[70vh]">
+              <img 
+                src={previewImageModal.url} 
+                alt="Full preview" 
+                className="max-h-[65vh] max-w-full object-contain rounded-xl shadow-md bg-white p-2"
+              />
             </div>
           </div>
         </div>

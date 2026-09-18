@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Copy, Check, ArrowLeft, PackageCheck, ShoppingBag, Truck } from 'lucide-react';
+import { CheckCircle2, Copy, Check, ArrowLeft, PackageCheck, ShoppingBag, Truck, FileText } from 'lucide-react';
 
 interface OrderSuccessModalProps {
   order: any | null;
@@ -24,7 +24,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 text-center p-6 sm:p-8 space-y-6">
+      <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 text-center p-6 sm:p-8 space-y-5">
         {/* Success Icon */}
         <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
           <CheckCircle2 className="w-10 h-10" />
@@ -48,13 +48,34 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             </span>
             <button
               onClick={handleCopy}
-              className="p-1.5 rounded-lg bg-white border border-slate-300 text-slate-600 hover:text-blue-600 hover:border-blue-400 transition-colors"
+              className="p-1.5 rounded-lg bg-white border border-slate-300 text-slate-600 hover:text-blue-600 hover:border-blue-400 transition-colors cursor-pointer"
               title="نسخ رقم الطلب"
             >
               {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
             </button>
           </div>
         </div>
+
+        {/* Uploaded Design / Logo Preview */}
+        {(order.designFileUrl || order.designFileName) && (
+          <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-2xl flex items-center gap-3 text-right">
+            {order.designFileUrl ? (
+              <div className="w-12 h-12 rounded-xl border border-emerald-300 overflow-hidden bg-white shrink-0 shadow-sm">
+                <img src={order.designFileUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+              </div>
+            ) : (
+              <div className="w-12 h-12 rounded-xl border border-emerald-300 bg-white shrink-0 flex items-center justify-center text-emerald-600 shadow-sm">
+                <FileText className="w-5 h-5" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] text-emerald-700 font-bold block">تم إرفاق الشعار مع طلبك بنجاح ✓</span>
+              <span className="text-xs font-black text-slate-900 truncate block">
+                {order.designFileName || 'ملف شعار مخصص'}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Summary Info */}
         <div className="grid grid-cols-2 gap-3 text-right bg-slate-50/60 p-3.5 rounded-xl border border-slate-100 text-xs">
