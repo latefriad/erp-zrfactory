@@ -24,6 +24,9 @@ const StoreOrderSchema = z.object({
   deliveryOption: z.enum(['HOME', 'STOP_DESK']).optional(),
   deliveryCompany: z.string().optional(),
   deliveryFee: z.number().nonnegative().optional(),
+  customizationTechnique: z.enum(['DTF', 'BRODERIE']).optional(),
+  designFileName: z.string().optional(),
+  designFileUrl: z.string().optional(),
   notes: z.string().optional(),
   items: z.array(z.object({
     productId: z.string().min(1),

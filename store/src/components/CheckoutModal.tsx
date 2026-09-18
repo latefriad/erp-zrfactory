@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { X, Truck, ShieldCheck, CheckCircle2, AlertCircle, ShoppingBag, Loader2 } from 'lucide-react';
 import { ALGERIA_WILAYAS, CartItem, StoreOrderPayload } from '../types/store';
 import { storeApi } from '../services/storeApi';
+import { DesignFileUpload, UploadedDesign } from './DesignFileUpload';
+import { recentOrdersService } from '../services/recentOrders';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -27,6 +29,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [deliveryOption, setDeliveryOption] = useState<'HOME' | 'STOP_DESK'>('HOME');
   const [notes, setNotes] = useState('');
   const [customizationTechnique, setCustomizationTechnique] = useState<'DTF' | 'BRODERIE'>('DTF');
+  const [designFile, setDesignFile] = useState<UploadedDesign | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -98,11 +101,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         deliveryCompany: 'Yalidine Express',
         deliveryFee,
         customizationTechnique,
+        designFileName: designFile?.name,
+        designFileUrl: designFile?.previewUrl,
         notes: [
           notes.trim(),
           customizationTechnique === 'BRODERIE'
             ? `[نوع التخصيص: تطريز صناعي فاخر Broderie (+10 قطع) - السعر يُحدد هاتفياً 📞]`
-            : `[نوع التخصيص: طباعة حرارية DTF HD]`
+            : `[نوع التخصيص: طباعة حرارية DTF HD]`,
+          designFile ? `[ملف الشعار المرفق: ${designFile.name} (${designFile.sizeFormatted})]` : ''
         ].filter(Boolean).join(' - ') || undefined,
         items: items.map(item => ({
           productId: item.productId,
@@ -110,12 +116,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           quantity: item.quantity,
           notes: [
             item.notes,
-            customizationTechnique === 'BRODERIE' ? 'تطريز (+10 قطع)' : 'طباعة DTF'
+            customizationTechnique === 'BRODERIE' ? 'تطريز (+10 قطع)' : 'طباعة DTF',
+            designFile ? `شعار: ${designFile.name}` : ''
           ].filter(Boolean).join(' | '),
         })),
       };
 
       const order = await storeApi.createStoreOrder(payload);
+      recentOrdersService.saveRecentOrder(order, {
+        designFileName: designFile?.name,
+        designPreviewUrl: designFile?.previewUrl,
+      });
       onOrderSuccess(order);
     } catch (err: any) {
       setErrorMessage(err.message || 'حدث خطأ أثناء إرسال الطلب، يرجى المحاولة مرة أخرى.');
@@ -349,6 +360,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 />
               </div>
             )}
+
+            {/* Custom Logo / Design File Upload */}
+            <DesignFileUpload
+              value={designFile}
+              onChange={setDesignFile}
+            />
 
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">

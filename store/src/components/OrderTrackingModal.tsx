@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, PackageCheck, Truck, CheckCircle2, Clock, AlertCircle, Loader2, Layers, MapPin } from 'lucide-react';
+import { X, Search, PackageCheck, Truck, CheckCircle2, Clock, AlertCircle, Loader2, Layers, MapPin, FileText } from 'lucide-react';
 import { OrderTrackingInfo } from '../types/store';
 import { storeApi } from '../services/storeApi';
 import { recentOrdersService, RecentStoreOrder } from '../services/recentOrders';
@@ -289,6 +289,30 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                   <span className="text-[11px] text-slate-500">سيتم تزويدك برقم الطرد فور الشحن</span>
                 )}
               </div>
+
+              {/* Uploaded Design/Logo info if exists */}
+              {(() => {
+                const matching = recentOrders.find(r => r.orderNumber === orderInfo.orderNumber);
+                if (matching?.designFileName) {
+                  return (
+                    <div className="p-3.5 rounded-xl bg-indigo-50/80 border border-indigo-200 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] text-indigo-500 block">ملف الشعار المرفق:</span>
+                          <span className="font-black text-indigo-950">{matching.designFileName}</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded-full border border-indigo-200">
+                        مرفق في الطلب ✓
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Items List */}
               <div className="space-y-2">

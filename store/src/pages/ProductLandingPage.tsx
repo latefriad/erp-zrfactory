@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { Product, ProductVariant, ALGERIA_WILAYAS, StoreOrderPayload } from '../types/store';
 import { storeApi } from '../services/storeApi';
+import { DesignFileUpload, UploadedDesign } from '../components/DesignFileUpload';
+import { recentOrdersService } from '../services/recentOrders';
 
 interface ProductLandingPageProps {
   product: Product;
@@ -116,6 +118,7 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
   const [address, setAddress] = useState('');
   const [deliveryOption, setDeliveryOption] = useState<'HOME' | 'STOP_DESK'>('HOME');
   const [notes, setNotes] = useState('');
+  const [designFile, setDesignFile] = useState<UploadedDesign | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -213,12 +216,15 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
         deliveryCompany: 'Yalidine Express',
         deliveryFee,
         customizationTechnique,
+        designFileName: designFile?.name,
+        designFileUrl: designFile?.previewUrl,
         notes: [
           notes.trim(),
           `[طلب مباشر من صفحة المنتج]`,
           customizationTechnique === 'BRODERIE'
             ? `[نوع التخصيص: تطريز صناعي فاخر Broderie (+10 قطع) - السعر يُحدد هاتفياً 📞]`
             : `[نوع التخصيص: طباعة حرارية DTF HD]`,
+          designFile ? `[ملف الشعار المرفق: ${designFile.name} (${designFile.sizeFormatted})]` : '',
           customizationTechnique === 'BRODERIE'
             ? `الكمية: ${totalItemsCount} قطعة (تطريز)`
             : (hasBundles ? `العرض: ${activeBundle.label}` : `الكمية: ${standardQuantity} قطعة`),
@@ -233,13 +239,18 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
               selectedVariant ? `الخيار: ${selectedVariant.name}` : '',
               customizationTechnique === 'BRODERIE'
                 ? 'تطريز صناعي (+10 قطع - السعر يُحدد هاتفياً)'
-                : 'طباعة حرارية DTF'
+                : 'طباعة حرارية DTF',
+              designFile ? `شعار: ${designFile.name}` : '',
             ].filter(Boolean).join(' | '),
           }
         ]
       };
 
       const createdOrder = await storeApi.createStoreOrder(payload);
+      recentOrdersService.saveRecentOrder(createdOrder, {
+        designFileName: designFile?.name,
+        designPreviewUrl: designFile?.previewUrl,
+      });
       onOrderSuccess(createdOrder);
     } catch (err: any) {
       console.error('Failed to submit COD order:', err);
@@ -910,6 +921,12 @@ export const ProductLandingPage: React.FC<ProductLandingPageProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* Upload Customer Logo or Design */}
+                <DesignFileUpload
+                  value={designFile}
+                  onChange={setDesignFile}
+                />
 
                 {/* Address / Notes */}
                 <div className="space-y-1.5">

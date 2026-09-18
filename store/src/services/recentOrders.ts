@@ -9,6 +9,8 @@ export interface RecentStoreOrder {
   status: string;
   createdAt: string;
   customization?: string;
+  designFileName?: string;
+  designPreviewUrl?: string;
 }
 
 const STORAGE_KEY = 'zr_store_recent_orders_v1';
@@ -36,7 +38,7 @@ export const recentOrdersService = {
     return list.length > 0 ? list[0] : null;
   },
 
-  saveRecentOrder(order: any): void {
+  saveRecentOrder(order: any, extras?: { designFileName?: string; designPreviewUrl?: string }): void {
     if (!order || !order.orderNumber) return;
     try {
       const current = this.getRecentOrders();
@@ -56,6 +58,8 @@ export const recentOrdersService = {
         status: order.status || 'PENDING',
         createdAt: order.createdAt || new Date().toISOString(),
         customization: order.notes?.includes('تطريز') ? 'تطريز (Broderie)' : 'طباعة (DTF)',
+        designFileName: extras?.designFileName || order.designFileName,
+        designPreviewUrl: extras?.designPreviewUrl || order.designFileUrl,
       };
 
       const updated = [newEntry, ...filtered].slice(0, MAX_ORDERS);

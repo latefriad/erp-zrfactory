@@ -44,6 +44,9 @@ export interface CreateStoreOrderInput {
   deliveryOption?: 'HOME' | 'STOP_DESK';
   deliveryCompany?: string;
   deliveryFee?: number;
+  customizationTechnique?: 'DTF' | 'BRODERIE';
+  designFileName?: string;
+  designFileUrl?: string;
   notes?: string;
   items: CreateStoreOrderItemInput[];
 }
@@ -773,7 +776,8 @@ export class OrderService {
     }
 
     const deliveryNote = input.deliveryOption === 'STOP_DESK' ? '[Livraison Stop-Desk]' : '[Livraison à Domicile]';
-    const orderNotes = input.notes ? `${deliveryNote} ${input.notes}` : `${deliveryNote} Commande Store Web`;
+    const designNote = input.designFileName ? `[Fichier Logo/Design: ${input.designFileName}]` : '';
+    const orderNotes = [deliveryNote, designNote, input.notes].filter(Boolean).join(' - ') || `${deliveryNote} Commande Store Web`;
 
     return this.createOrder({
       customerId: customer.id,

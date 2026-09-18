@@ -97,4 +97,41 @@ describe('Phase 16: ZR Factory E-Commerce Store & Unified Backend', () => {
     expect(trackByPhone.body.success).toBe(true);
     expect(trackByPhone.body.data.tracking.orderNumber).toBe(order.orderNumber);
   });
+
+  it('should successfully place a store order with uploaded design file and Broderie technique', async () => {
+    const activeProducts = db.prepare('SELECT id FROM products WHERE is_active = 1 LIMIT 1').all() as any[];
+    const productId = activeProducts[0].id;
+
+    const payload = {
+      customerName: 'Samir Algérois',
+      customerPhone: '0661223344',
+      shippingWilaya: '31 - Oran (وهران)',
+      shippingCommune: 'Es Senia',
+      shippingAddress: 'Zone Industrielle',
+      deliveryOption: 'HOME',
+      deliveryFee: 600,
+      customizationTechnique: 'BRODERIE',
+      designFileName: 'company-logo-hd.png',
+      notes: '[طلب خاص] شعار مطرز عالي الجودة',
+      items: [
+        {
+          productId,
+          quantity: 12,
+          notes: 'تطريز أمامي | شعار: company-logo-hd.png',
+        },
+      ],
+    };
+
+    const res = await request(app)
+      .post('/api/orders/store-order')
+      .send(payload);
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    const order = res.body.data.order;
+    expect(order.orderNumber).toMatch(/^ZR-\d{6}-\d{4}/);
+    expect(order.notes).toContain('company-logo-hd.png');
+    expect(order.notes).toContain('Livraison à Domicile');
+  });
 });
+

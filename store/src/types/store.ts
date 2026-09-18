@@ -124,6 +124,8 @@ export interface StoreOrderPayload {
   deliveryCompany?: string;
   deliveryFee?: number;
   customizationTechnique?: 'DTF' | 'BRODERIE';
+  designFileName?: string;
+  designFileUrl?: string;
   notes?: string;
   items: Array<{
     productId: string;
